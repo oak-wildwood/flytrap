@@ -1,0 +1,13 @@
+{
+  "action": "created",
+  "issue": {
+    "number": 7,
+    "pull_request": { "url": "https://api.github.com/repos/oak-wildwood/nuthatch/pulls/7" }
+  },
+  "comment": {
+    "id": 1003,
+    "body": "Echoing: @nuthatch please take a look",
+    "user": { "login": "some-automation[bot]", "type": "Bot" }
+  },
+  "repository": { "full_name": "oak-wildwood/nuthatch" }
+}

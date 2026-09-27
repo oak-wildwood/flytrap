@@ -1,0 +1,27 @@
+name: Nuthatch
+
+# Comment @nuthatch on a pull request to get a Review.
+#
+# Uses the published action, even in this repo: `uses: ./` would run the action from the
+# workspace, and on a PR that is the PR's own code with the repo's secrets in reach.
+#
+# claude-code-action skips runs whose workflow doesn't match the default branch's copy, so a change
+# to this file only takes effect once it is merged.
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    # A cheap pre-filter; the real trigger and permission checks are in `nuthatch prepare`.
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '@nuthatch')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: oak-wildwood/nuthatch@main
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

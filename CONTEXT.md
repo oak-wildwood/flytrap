@@ -42,7 +42,7 @@ or **Nitpick** (optional).
 _Avoid_: Priority, level
 
 **Verdict**:
-The Review's overall judgement: **Approve**, **Approve with suggestions**, or **Request Changes**.
+The Review's overall judgment: **Approve**, **Approve with suggestions**, or **Request Changes**.
 _Avoid_: Result, status
 
 ### Portability

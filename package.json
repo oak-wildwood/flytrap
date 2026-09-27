@@ -1,0 +1,16 @@
+{
+  "name": "nuthatch",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LLM-powered PR code review: @nuthatch on demand or as a PR check.",
+  "type": "module",
+  "bin": {
+    "nuthatch": "bin/nuthatch.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

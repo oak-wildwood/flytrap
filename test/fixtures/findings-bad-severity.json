@@ -1,0 +1,7 @@
+{
+  "verdict": "approve_with_suggestions",
+  "summary": "Mostly fine.",
+  "findings": [
+    { "file": "a.js", "line": 1, "category": "style", "severity": "major", "title": "t", "body": "b" }
+  ]
+}
