@@ -1,21 +1,35 @@
+/** @typedef {import('./schema.js').Review} Review */
+
 // Turns a validated Review into the markdown of one PR comment: Verdict, then summary, then
 // Findings. The text comes from the model, which read PR-controlled input, so it is treated as
 // untrusted when rendered.
 
 export const MARKER = '<!-- nuthatch:review -->';
 
-const VERDICT_ICON = {
-  'Approve': '✅',
-  'Approve with suggestions': '💬',
-  'Request Changes': '❌',
+const VERDICT = {
+  approve: '✅ Approve',
+  approve_with_suggestions: '💬 Approve with suggestions',
+  request_changes: '❌ Request Changes',
 };
 
-const SEVERITY_ORDER = ['Blocker', 'Suggestion', 'Nitpick'];
+const SEVERITY = { blocker: 'Blocker', suggestion: 'Suggestion', nitpick: 'Nitpick' };
+const SEVERITY_ORDER = Object.keys(SEVERITY);
 
+const CATEGORY = {
+  correctness: 'Correctness',
+  security: 'Security',
+  performance: 'Performance',
+  maintainability: 'Maintainability',
+  testing: 'Testing',
+  conventions: 'Conventions',
+  spec: 'Spec',
+};
+
+/** @param {Review} review */
 export function renderReview(review) {
   const lines = [
     MARKER,
-    `## ${VERDICT_ICON[review.verdict]} Nuthatch: ${review.verdict}`,
+    `## Nuthatch: ${VERDICT[review.verdict]}`,
     '',
     neutralise(review.summary.trim()),
     '',
@@ -31,9 +45,13 @@ export function renderReview(review) {
     for (const f of sorted) {
       const range = f.end_line && f.end_line !== f.line ? `${f.line}-${f.end_line}` : `${f.line}`;
       lines.push(
-        `- **${f.severity}** · ${f.category} · ${code(`${f.path}:${range}`)}: ${neutralise(oneLine(f.title))}`,
+        `- **${SEVERITY[f.severity]}** · ${CATEGORY[f.category]} · ${code(`${f.file}:${range}`)}: ` +
+          neutralise(oneLine(f.title)),
         indent(neutralise(f.body.trim())),
       );
+      // Inline suggested changes come with inline comments; in a summary comment the replacement
+      // code is shown as a plain block.
+      if (f.suggestion) lines.push(indent(fenced(f.suggestion)));
     }
   }
   return lines.join('\n') + '\n';
@@ -52,8 +70,16 @@ function indent(text) {
   return text.split('\n').map((line) => (line ? `  ${line}` : '')).join('\n');
 }
 
+function longestBacktickRun(text) {
+  return Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
+}
+
 function code(text) {
-  const longest = Math.max(0, ...(text.match(/`+/g) ?? []).map((run) => run.length));
-  const ticks = '`'.repeat(longest + 1);
-  return longest ? `${ticks} ${text} ${ticks}` : `${ticks}${text}${ticks}`;
+  const ticks = '`'.repeat(longestBacktickRun(text) + 1);
+  return ticks.length > 1 ? `${ticks} ${text} ${ticks}` : `${ticks}${text}${ticks}`;
+}
+
+function fenced(text) {
+  const fence = '`'.repeat(Math.max(3, longestBacktickRun(text) + 1));
+  return `${fence}\n${text.replace(/\n$/, '')}\n${fence}`;
 }

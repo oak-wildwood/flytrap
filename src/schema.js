@@ -1,5 +1,22 @@
 import { readFileSync } from 'node:fs';
 
+/**
+ * @typedef {object} Finding
+ * @property {string} file
+ * @property {number} line
+ * @property {number} [end_line]
+ * @property {'correctness'|'security'|'performance'|'maintainability'|'testing'|'conventions'|'spec'} category
+ * @property {'blocker'|'suggestion'|'nitpick'} severity
+ * @property {string} title
+ * @property {string} body
+ * @property {string} [suggestion]
+ *
+ * @typedef {object} Review
+ * @property {'approve'|'approve_with_suggestions'|'request_changes'} verdict
+ * @property {string} summary
+ * @property {Finding[]} findings
+ */
+
 const SCHEMA_URL = new URL('../schema/findings.schema.json', import.meta.url);
 
 export function loadSchema() {

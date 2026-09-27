@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { githubApi } from '../src/github.js';
 import { writeOutputs } from '../src/outputs.js';
@@ -19,7 +19,9 @@ const commands = {
     const event = JSON.parse(readFileSync(requireEnv('GITHUB_EVENT_PATH'), 'utf8'));
     const result = await prepare({ event, api: apiFromEnv() });
     writeOutputs({ proceed: result.proceed, reason: result.reason, ...result.outputs });
-    console.error(`${result.proceed ? 'Reviewing' : 'Not reviewing'}: ${result.reason}`);
+    const line = `${result.proceed ? 'Reviewing' : 'Not reviewing'}: ${result.reason}`;
+    console.error(line);
+    stepSummary(line);
   },
 
   async 'post-review'(argv) {
@@ -29,8 +31,10 @@ const commands = {
     });
     const prNumber = Number(values.pr);
     const raw = values.findings ? readFileSync(values.findings, 'utf8') : process.env.NUTHATCH_FINDINGS;
+    // Validate before touching GitHub config, so empty output reports itself as that.
+    const plan = planReview({ raw, prNumber });
     if (values.plan) {
-      console.log(JSON.stringify(planReview({ raw, prNumber }), null, 2));
+      console.log(JSON.stringify(plan, null, 2));
       return;
     }
     await postReview({ raw, prNumber, api: apiFromEnv() });
@@ -44,6 +48,11 @@ function apiFromEnv() {
     repository: process.env.GITHUB_REPOSITORY,
     baseUrl: process.env.GITHUB_API_URL,
   });
+}
+
+// So a stop or failure explains itself on the run page, without downloading anything.
+function stepSummary(text) {
+  if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${text}\n`);
 }
 
 function requireEnv(name) {
@@ -61,6 +70,8 @@ if (!command) {
 try {
   await command(rest);
 } catch (err) {
-  console.error(`nuthatch ${name}: ${err.message}`);
+  const message = `nuthatch ${name} failed: ${err.message}`;
+  console.error(`::error::${message.replace(/\n/g, '%0A')}`);
+  stepSummary(message);
   process.exit(1);
 }

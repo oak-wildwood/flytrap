@@ -12,7 +12,7 @@ test('plans one PR comment: Verdict, then summary, then Findings', () => {
   assert.equal(action.method, 'POST');
   assert.equal(action.path, '/issues/7/comments');
   assert.equal(action.body, `${MARKER}
-## ❌ Nuthatch: Request Changes
+## Nuthatch: ❌ Request Changes
 
 Changes \`add\` to subtract, which breaks every caller.
 
@@ -21,6 +21,10 @@ Changes \`add\` to subtract, which breaks every caller.
 - **Blocker** · Correctness · \`src/add.js:2-3\`: add() now subtracts
   \`a - b\` returns the difference.
   Use \`a + b\`.
+  \`\`\`
+    return a + b;
+  }
+  \`\`\`
 - **Nitpick** · Maintainability · \`src/add.js:2\`: Name no longer matches behaviour
   If subtraction is intended, rename the function.
 `);
@@ -29,7 +33,7 @@ Changes \`add\` to subtract, which breaks every caller.
 test('says so when there are no Findings', () => {
   const { actions } = planReview({ raw: fixture('findings-approve.json'), prNumber: 7 });
   assert.equal(actions[0].body, `${MARKER}
-## ✅ Nuthatch: Approve
+## Nuthatch: ✅ Approve
 
 A small, correct change.
 
@@ -39,9 +43,9 @@ No findings.
 
 test('breaks @mentions in model-written text', () => {
   const raw = JSON.stringify({
-    verdict: 'Approve with suggestions',
+    verdict: 'approve_with_suggestions',
     summary: 'cc @oak-wildwood/everyone',
-    findings: [{ path: 'a.js', line: 1, category: 'Testing', severity: 'Suggestion', title: 'ping @oak', body: 'hi @someone' }],
+    findings: [{ file: 'a.js', line: 1, category: 'testing', severity: 'suggestion', title: 'ping @oak', body: 'hi @someone' }],
   });
   const { body } = planReview({ raw, prNumber: 7 }).actions[0];
   assert.doesNotMatch(body, /@[A-Za-z]/);

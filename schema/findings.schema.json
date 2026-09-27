@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/oak-wildwood/nuthatch/schema/findings.schema.json",
   "title": "Nuthatch Review",
-  "description": "The Findings and Verdict of one Review. This is the contract between a Harness and the posting code.",
+  "description": "The Findings and Verdict of one Review. This is the contract between a Harness and the posting code (ADR 0001).",
   "type": "object",
   "additionalProperties": false,
   "required": ["verdict", "summary", "findings"],
@@ -10,7 +10,7 @@
     "verdict": {
       "description": "The overall judgement of the Review.",
       "type": "string",
-      "enum": ["Approve", "Approve with suggestions", "Request Changes"]
+      "enum": ["approve", "approve_with_suggestions", "request_changes"]
     },
     "summary": {
       "description": "A few sentences on what the change does and how it holds up.",
@@ -23,9 +23,9 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "line", "category", "severity", "title", "body"],
+        "required": ["file", "line", "category", "severity", "title", "body"],
         "properties": {
-          "path": {
+          "file": {
             "description": "Repository-relative path of the changed file.",
             "type": "string",
             "minLength": 1
@@ -41,14 +41,14 @@
             "minimum": 1
           },
           "category": {
-            "description": "The Rubric category the problem falls under.",
+            "description": "The Rubric category the problem falls under. spec is used only when a Spec was given.",
             "type": "string",
-            "enum": ["Correctness", "Security", "Performance", "Maintainability", "Testing", "Conventions"]
+            "enum": ["correctness", "security", "performance", "maintainability", "testing", "conventions", "spec"]
           },
           "severity": {
-            "description": "Blocker must be fixed before merge, Suggestion is recommended, Nitpick is optional.",
+            "description": "blocker must be fixed before merge, suggestion is recommended, nitpick is optional.",
             "type": "string",
-            "enum": ["Blocker", "Suggestion", "Nitpick"]
+            "enum": ["blocker", "suggestion", "nitpick"]
           },
           "title": {
             "description": "One line naming the problem.",
@@ -59,6 +59,10 @@
             "description": "Why it is a problem and what to do about it.",
             "type": "string",
             "minLength": 1
+          },
+          "suggestion": {
+            "description": "Optional replacement code for exactly the lines from line to end_line.",
+            "type": "string"
           }
         }
       }

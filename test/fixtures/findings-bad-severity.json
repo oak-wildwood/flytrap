@@ -1,7 +1,7 @@
 {
-  "verdict": "Approve with suggestions",
+  "verdict": "approve_with_suggestions",
   "summary": "Mostly fine.",
   "findings": [
-    { "path": "a.js", "line": 1, "category": "Style", "severity": "Major", "title": "t", "body": "b" }
+    { "file": "a.js", "line": 1, "category": "style", "severity": "major", "title": "t", "body": "b" }
   ]
 }

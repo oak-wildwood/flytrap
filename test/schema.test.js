@@ -10,17 +10,17 @@ test('accepts the valid fixtures', () => {
 });
 
 test('rejects missing fields, extra fields, and wrong types', () => {
-  assert.deepEqual(validate({ verdict: 'Approve', findings: [], extra: 1 }), [
+  assert.deepEqual(validate({ verdict: 'approve', findings: [], extra: 1 }), [
     '$.summary is required',
     '$.extra is not allowed',
   ]);
   assert.deepEqual(validate([]), ['$ should be object']);
-  const finding = { path: 'a', line: 0, category: 'Testing', severity: 'Nitpick', title: 't', body: '' };
-  assert.deepEqual(validate({ verdict: 'Approve', summary: 's', findings: [finding] }), [
+  const finding = { file: 'a', line: 0, category: 'testing', severity: 'nitpick', title: 't', body: '' };
+  assert.deepEqual(validate({ verdict: 'approve', summary: 's', findings: [finding] }), [
     '$.findings[0].line should be at least 1',
     '$.findings[0].body should not be empty',
   ]);
-  assert.deepEqual(validate({ verdict: 'Approve', summary: 's', findings: [{ ...finding, line: 1.5, body: 'b' }] }), [
+  assert.deepEqual(validate({ verdict: 'approve', summary: 's', findings: [{ ...finding, line: 1.5, body: 'b' }] }), [
     '$.findings[0].line should be integer',
   ]);
 });

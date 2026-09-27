@@ -1,23 +1,24 @@
 {
-  "verdict": "Request Changes",
+  "verdict": "request_changes",
   "summary": "Changes `add` to subtract, which breaks every caller.",
   "findings": [
     {
-      "path": "src/add.js",
+      "file": "src/add.js",
       "line": 2,
-      "category": "Maintainability",
-      "severity": "Nitpick",
+      "category": "maintainability",
+      "severity": "nitpick",
       "title": "Name no longer matches behaviour",
       "body": "If subtraction is intended, rename the function."
     },
     {
-      "path": "src/add.js",
+      "file": "src/add.js",
       "line": 2,
       "end_line": 3,
-      "category": "Correctness",
-      "severity": "Blocker",
+      "category": "correctness",
+      "severity": "blocker",
       "title": "add() now subtracts",
-      "body": "`a - b` returns the difference.\nUse `a + b`."
+      "body": "`a - b` returns the difference.\nUse `a + b`.",
+      "suggestion": "  return a + b;\n}"
     }
   ]
 }

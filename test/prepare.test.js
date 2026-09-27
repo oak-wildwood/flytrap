@@ -53,6 +53,15 @@ test('still checks permission first on a fork PR from a read-only commenter', as
   assert.deepEqual(api.calls.map(([name]) => name), ['getPermission']);
 });
 
+test('ignores bot comments without looking anything up', async () => {
+  const api = fakeApi({ permission: 'admin' });
+  const result = await prepare({ event: jsonFixture('event-bot-comment.json'), api });
+
+  assert.equal(result.proceed, false);
+  assert.match(result.reason, /some-automation\[bot\] is a bot/);
+  assert.deepEqual(api.calls, []);
+});
+
 test('ignores comments on issues', async () => {
   const api = fakeApi({ permission: 'admin' });
   const result = await prepare({ event: jsonFixture('event-issue-comment.json'), api });

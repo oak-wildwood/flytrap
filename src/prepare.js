@@ -13,9 +13,14 @@ export const MAX_DIFF_CHARS = 200_000;
 // Decides whether this event gets a Review and, if so, gathers what the Harness needs.
 // Returns { proceed: false, reason } to stop, or { proceed: true, reason, outputs }.
 //
-// The permission check comes before anything else touches the PR (ADR 0004): a commenter without
+// Only checks on the event payload itself come before the permission check, and the permission
+// check comes before anything touches the PR (ADR 0004): a commenter without
 // write access must not cause a checkout or a model call, even on a fork PR where the run has
 // the base repository's secrets.
+/**
+ * @param {{ event: any, api: ReturnType<typeof import('./github.js').githubApi> }} args
+ * @returns {Promise<{ proceed: boolean, reason: string, outputs?: Record<string, string|number|boolean> }>}
+ */
 export async function prepare({ event, api }) {
   const comment = event.comment;
   if (!event.issue?.pull_request || !comment) {
@@ -27,6 +32,10 @@ export async function prepare({ event, api }) {
 
   const login = comment.user?.login;
   if (!login) return stop('the comment has no author');
+  // So automation that echoes a comment can't start Reviews in a loop.
+  if (comment.user.type === 'Bot' || login.endsWith('[bot]')) {
+    return stop(`@${login} is a bot`);
+  }
   const { permission, roleName } = await api.getPermission(login);
   if (!ALLOWED_PERMISSIONS.has(roleName) && !ALLOWED_PERMISSIONS.has(permission)) {
     return stop(

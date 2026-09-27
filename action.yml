@@ -11,6 +11,10 @@ inputs:
   anthropic_api_key:
     description: Anthropic API key for the Claude Adapter. Give this or claude_code_oauth_token.
     required: false
+  model:
+    description: Model the Claude Adapter runs.
+    required: false
+    default: opus
   github_token:
     description: Token Nuthatch's own steps use to read the PR and post the Review.
     required: false
@@ -39,6 +43,20 @@ runs:
         REASON: ${{ steps.prepare.outputs.reason }}
       run: printf '::notice title=Nuthatch skipped::%s\n' "$REASON"
 
+    - name: Check exactly one credential is set
+      if: steps.prepare.outputs.proceed == 'true'
+      shell: bash
+      env:
+        HAS_OAUTH: ${{ inputs.claude_code_oauth_token != '' }}
+        HAS_KEY: ${{ inputs.anthropic_api_key != '' }}
+      run: |
+        if [ "$HAS_OAUTH" = "$HAS_KEY" ]; then
+          msg='Set exactly one of claude_code_oauth_token and anthropic_api_key.'
+          printf '::error::%s\n' "$msg"
+          printf '%s\n' "$msg" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+        fi
+
     # So the model can Read changed files, fork PRs included. Nothing in it is ever executed:
     # no install, no build, no scripts, and no credentials left in the checkout.
     - name: Check out the pull request head
@@ -59,6 +77,7 @@ runs:
         github_token: ${{ inputs.github_token }}
         prompt: ${{ steps.prepare.outputs.prompt }}
         claude_args: |
+          --model ${{ inputs.model }}
           --tools Read,Glob,Grep
           --allowedTools Read,Glob,Grep
           --json-schema '${{ steps.prepare.outputs.json_schema }}'
