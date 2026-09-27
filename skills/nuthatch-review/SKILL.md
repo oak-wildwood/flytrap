@@ -43,16 +43,17 @@ Judge the Changed lines against each of these six categories. Every Finding has 
 JSON value of each category is its name in lowercase: `correctness`, `security`, and so on.
 
 1. **Correctness**: logic errors, wrong conditions, off-by-one, unhandled errors or edge cases
-   (empty, null, missing, concurrent), broken contracts with callers, behaviour that doesn't match
+   (empty, null or undefined, missing, concurrent), broken contracts with callers, behaviour that doesn't match
    what the code, its names or its docs say it does.
-2. **Security**: injection (shell, SQL, HTML, template), untrusted input reaching something
-   powerful, secrets in code or logs, missing authentication or authorisation checks, unsafe
-   defaults, over-broad permissions.
-3. **Performance**: needless work in hot paths, N+1 queries or requests, unbounded growth in memory
-   or output, blocking calls where it matters. Only where the cost is plausible and real, not
+2. **Security**: injection (shell, SQL, HTML, template), unsafe deserialization, untrusted input
+   reaching something powerful, secrets in code or logs, missing authentication or authorisation
+   checks, unsafe defaults, over-broad permissions.
+3. **Performance**: needless work or allocations in hot paths, N+1 queries or requests, missing
+   indexes, unbounded growth in memory or output, blocking calls in async code. Only where the cost is plausible and real, not
    speculative micro-optimisation.
 4. **Maintainability**: code that is hard to follow or change safely: duplication of existing
-   helpers, misleading names, dead code, tangled responsibilities, comments that contradict code.
+   helpers, unclear or misleading names, overly clever code, dead code introduced by the change,
+   tangled responsibilities, comments that contradict code.
 5. **Testing**: behaviour changes without tests, tests that can't fail or don't test what they
    claim, missing edge cases that the change makes likely.
 6. **Conventions**: departures from the repository's own written rules in its agent instruction
@@ -67,10 +68,12 @@ no Spec.
 
 ## Severity
 
-- **Blocker**: must be fixed before merge. It is wrong, unsafe, or breaks a written rule the
-  repository treats as hard.
-- **Suggestion**: recommended. The change works, but this would make it clearly better.
-- **Nitpick**: optional. Small polish a reasonable author could skip.
+- **Blocker**: must be fixed before merge: correctness bugs, security issues, data-loss risks, or
+  breaking a written rule the repository treats as hard.
+- **Suggestion**: recommended. The change works, but this would make it clearly better: a better
+  pattern, clearer code, a missing test.
+- **Nitpick**: optional. Small polish a reasonable author could skip: naming, formatting, minor
+  readability.
 
 When unsure between two, choose the lower one. Don't pad the Review: no Findings for things that
 are fine, no praise, and no Finding you can't tie to a specific changed line.
