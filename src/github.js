@@ -34,6 +34,10 @@ export function githubApi({ token, repository, fetch = globalThis.fetch, baseUrl
     getDiff(number) {
       return request('GET', `/pulls/${number}`, { accept: 'application/vnd.github.diff' });
     },
+    // Returns the reaction; GitHub answers 200 with the existing one if it's already there.
+    addReaction(commentId, content) {
+      return request('POST', `/issues/comments/${commentId}/reactions`, { body: { content } });
+    },
     createComment(number, body) {
       return request('POST', `/issues/${number}/comments`, { body: { body } });
     },

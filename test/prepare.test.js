@@ -16,8 +16,10 @@ for (const permission of ['write', 'maintain', 'admin']) {
     assert.equal(result.outputs.pr_number, 7);
     assert.equal(result.outputs.is_fork, false);
     assert.equal(result.outputs.checkout_ref, 'refs/pull/7/head');
-    assert.deepEqual(api.calls.map(([name]) => name), ['getPermission', 'getPull', 'getDiff']);
+    assert.deepEqual(api.calls.map(([name]) => name), ['getPermission', 'getPull', 'addReaction', 'getDiff']);
     assert.deepEqual(api.calls[0], ['getPermission', 'oak']);
+    assert.deepEqual(api.calls[2], ['addReaction', 1001, 'eyes']);
+    assert.equal(result.outputs.reaction_id, 42);
   });
 }
 
@@ -91,6 +93,18 @@ test('stops on a closed pull request', async () => {
 
   assert.equal(result.proceed, false);
   assert.match(result.reason, /#7 is closed/);
+  assert.ok(!api.calls.some(([name]) => name === 'addReaction'), 'no 👀 when nothing will be posted');
+});
+
+test('still reviews when the 👀 reaction fails, and says why', async () => {
+  const api = fakeApi({ permission: 'write' });
+  api.addReaction = async () => { throw new Error('GitHub POST failed: 403'); };
+  const warnings = [];
+  const result = await prepare({ event: event(), api, warn: (m) => warnings.push(m) });
+
+  assert.equal(result.proceed, true);
+  assert.equal(result.outputs.reaction_id, '');
+  assert.deepEqual(warnings, ['could not react to the comment: GitHub POST failed: 403']);
 });
 
 test('gives the Harness the rubric, the diff and the findings schema', async () => {

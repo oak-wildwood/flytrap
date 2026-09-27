@@ -25,6 +25,10 @@ export function fakeApi({ permission, roleName = permission, pull = 'pull-same-r
       calls.push(['getDiff', number]);
       return fixture(diff);
     },
+    async addReaction(commentId, content) {
+      calls.push(['addReaction', commentId, content]);
+      return { id: 42, content };
+    },
     async createComment(number, body) {
       calls.push(['createComment', number, body]);
       return { id: 1 };
