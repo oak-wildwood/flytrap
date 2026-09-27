@@ -18,10 +18,10 @@ export const MAX_DIFF_CHARS = 200_000;
 // write access must not cause a checkout or a model call, even on a fork PR where the run has
 // the base repository's secrets.
 /**
- * @param {{ event: any, api: ReturnType<typeof import('./github.js').githubApi> }} args
+ * @param {{ event: any, api: ReturnType<typeof import('./github.js').githubApi>, warn?: (message: string) => void }} args
  * @returns {Promise<{ proceed: boolean, reason: string, outputs?: Record<string, string|number|boolean> }>}
  */
-export async function prepare({ event, api }) {
+export async function prepare({ event, api, warn = (message) => console.error(`::warning::${message}`) }) {
   const comment = event.comment;
   if (!event.issue?.pull_request || !comment) {
     return stop('the event is not a comment on a pull request');
@@ -47,6 +47,17 @@ export async function prepare({ event, api }) {
   const number = event.issue.number;
   const pull = await api.getPull(number);
   if (pull.state !== 'open') return stop(`pull request #${number} is ${pull.state}`);
+
+  // 👀 on the comment, as @claude does, so the commenter knows a Review is coming before the
+  // checkout and model call. Only now, so a comment Nuthatch ignores gets no sign that anything
+  // ran. The reaction is a courtesy: failing to add it never stops the Review.
+  let reactionId = '';
+  try {
+    reactionId = (await api.addReaction(comment.id, 'eyes')).id ?? '';
+  } catch (err) {
+    warn(`could not react to the comment: ${err.message}`);
+  }
+
   const diff = await api.getDiff(number);
 
   const baseRepo = pull.base.repo.full_name;
@@ -56,6 +67,8 @@ export async function prepare({ event, api }) {
     reason: `@${login} asked for a Review of #${number}`,
     outputs: {
       pr_number: number,
+      // So a later step can swap the 👀 for the outcome.
+      reaction_id: reactionId,
       head_sha: pull.head.sha,
       is_fork: headRepo !== baseRepo,
       // Fetched from the base repository, so fork PRs check out without access to the fork.
