@@ -2,7 +2,7 @@ name: Claude Code
 
 # Thin caller for oak-wildwood/gh-repo-init's reusable claude workflow — see
 # that repo's actions/claude for what actually runs, pinned to @v1 so a fix
-# there doesn't change this repo's behaviour until the tag moves. Requires
+# there doesn't change this repo's behavior until the tag moves. Requires
 # the Claude GitHub App and a CLAUDE_CODE_OAUTH_TOKEN secret: run
 # /install-github-app in Claude Code to set both up.
 
