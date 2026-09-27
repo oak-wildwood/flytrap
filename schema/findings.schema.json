@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/oak-wildwood/nuthatch/schema/findings.schema.json",
+  "title": "Nuthatch Review",
+  "description": "The Findings and Verdict of one Review. This is the contract between a Harness and the posting code.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "summary", "findings"],
+  "properties": {
+    "verdict": {
+      "description": "The overall judgement of the Review.",
+      "type": "string",
+      "enum": ["Approve", "Approve with suggestions", "Request Changes"]
+    },
+    "summary": {
+      "description": "A few sentences on what the change does and how it holds up.",
+      "type": "string",
+      "minLength": 1
+    },
+    "findings": {
+      "description": "One entry per problem in the Changed lines. Empty when there are none.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "line", "category", "severity", "title", "body"],
+        "properties": {
+          "path": {
+            "description": "Repository-relative path of the changed file.",
+            "type": "string",
+            "minLength": 1
+          },
+          "line": {
+            "description": "Line number in the new version of the file where the problem starts.",
+            "type": "integer",
+            "minimum": 1
+          },
+          "end_line": {
+            "description": "Last line of the problem, when it spans several lines.",
+            "type": "integer",
+            "minimum": 1
+          },
+          "category": {
+            "description": "The Rubric category the problem falls under.",
+            "type": "string",
+            "enum": ["Correctness", "Security", "Performance", "Maintainability", "Testing", "Conventions"]
+          },
+          "severity": {
+            "description": "Blocker must be fixed before merge, Suggestion is recommended, Nitpick is optional.",
+            "type": "string",
+            "enum": ["Blocker", "Suggestion", "Nitpick"]
+          },
+          "title": {
+            "description": "One line naming the problem.",
+            "type": "string",
+            "minLength": 1
+          },
+          "body": {
+            "description": "Why it is a problem and what to do about it.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
