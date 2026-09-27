@@ -61,9 +61,16 @@ export async function prepare({ event, api }) {
       // Fetched from the base repository, so fork PRs check out without access to the fork.
       checkout_ref: `refs/pull/${number}/head`,
       prompt: buildPrompt({ repository: baseRepo, pull, diff }),
-      json_schema: JSON.stringify(loadSchema()),
+      json_schema: JSON.stringify(schemaForHarness()),
     },
   };
+}
+
+// The Claude CLI's validator rejects the draft 2020-12 `$schema` URI, and the schema uses no
+// keyword that needs it. The file keeps `$schema` and `$id` for editors and our own validator.
+function schemaForHarness() {
+  const { $schema, $id, ...schema } = loadSchema();
+  return schema;
 }
 
 function stop(reason) {
