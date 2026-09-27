@@ -101,7 +101,10 @@ test('gives the Harness the rubric, the diff and the findings schema', async () 
   assert.doesNotMatch(outputs.prompt, /^---\nname:/, 'skill frontmatter is stripped');
   assert.ok(outputs.prompt.includes(fixture('pr.diff')));
   assert.match(outputs.prompt, /Pull request: #7/);
-  assert.deepEqual(JSON.parse(outputs.json_schema), loadSchema());
+  const { $schema, $id, ...rest } = loadSchema();
+  assert.deepEqual(JSON.parse(outputs.json_schema), rest);
+  // The Claude CLI rejects the draft 2020-12 $schema URI (first live run, #14).
+  assert.ok(!('$schema' in JSON.parse(outputs.json_schema)));
   // action.yml passes the schema inside single quotes in claude_args.
   assert.ok(!outputs.json_schema.includes("'"));
 });
