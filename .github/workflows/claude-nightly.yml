@@ -1,0 +1,32 @@
+name: Claude Nightly
+
+# Thin caller for oak-wildwood/gh-repo-init's reusable nightly workflow —
+# the behaviour lives in that repo's actions/nightly-pick and nightly-run,
+# pinned to @v1 so a fix there doesn't change this repo's Nightly until the
+# tag moves. Needs the same GitHub App + CLAUDE_CODE_OAUTH_TOKEN as
+# claude.yml, plus the standard label set (claude-task, claude-in-progress,
+# human-task, model:haiku, model:sonnet, model:opus, model:fable) — gh
+# repo-init creates all of them when this workflow is added.
+
+on:
+  schedule:
+    - cron: '0 9 * * *'  # GitHub cron runs in UTC — adjust to your own off-hours
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Work this issue now instead of waiting for the cron.
+        required: false
+
+jobs:
+  nightly:
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    uses: oak-wildwood/gh-repo-init/.github/workflows/nightly.yml@v1
+    with:
+      issue_number: ${{ inputs.issue_number }}
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

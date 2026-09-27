@@ -1,0 +1,5 @@
+
+# Agent tooling. AGENTS.md, CLAUDE.md and .claude/skills/ are shared and
+# checked in. Per-machine settings are not.
+.claude/settings.local.json
+CLAUDE.local.md

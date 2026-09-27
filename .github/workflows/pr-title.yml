@@ -1,0 +1,65 @@
+name: PR title
+
+# The squashed commit takes its subject from the pull request title, so a title
+# that drifts from the convention lands in main permanently. AGENTS.md and
+# CONTRIBUTING.md both describe the convention, but instruction files are
+# advisory — agents author most pull requests here, and "please follow this"
+# is not the same as "cannot merge without". This is the binding half.
+
+on:
+  pull_request:
+    # `edited` matters: it is what fires when someone fixes a rejected title,
+    # and without it the check would stay red until an unrelated push.
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  conventional:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the title is a conventional commit
+        # Passed as an environment variable rather than interpolated into the
+        # script. A pull request title is attacker-controlled text, and
+        # ${{ }} inside a run block is substituted before bash sees it, so a
+        # title containing shell syntax would execute here.
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Keep this list in step with your AGENTS.md / CONTRIBUTING.md.
+          # These seven are a sensible default; edit to taste.
+          TYPES='feat|fix|refactor|test|docs|ci|chore'
+
+          fail() {
+            printf '::error::%s\n' "$1"
+            printf '\nTitle:    %s\n' "$TITLE"
+            printf 'Expected: type: imperative summary\n'
+            printf 'Types:    %s\n' "$(printf '%s' "$TYPES" | tr '|' ' ')"
+            printf '\nFor example:\n'
+            # Generic on purpose — this is a template. Swap these two for real
+            # examples from the project's own history once it has one.
+            printf '  feat: add dark mode toggle to settings\n'
+            printf '  fix: stop the sidebar overlapping the header on mobile\n'
+            printf '\nSee AGENTS.md for what each type covers.\n'
+            exit 1
+          }
+
+          printf '%s' "$TITLE" | grep -qE "^($TYPES): ." \
+            || fail "Title must start with one of: $(printf '%s' "$TYPES" | tr '|' ' ')"
+
+          printf '%s' "$TITLE" | grep -qE "^($TYPES): [a-z]" \
+            || fail "The summary should start lowercase, right after the colon."
+
+          case "$TITLE" in
+            *.) fail "Drop the trailing period — commit subjects don't take one." ;;
+          esac
+
+          # 66 rather than 72 because GitHub appends " (#123)" to the squashed
+          # subject. Budgeting for it here keeps the finished commit subject
+          # inside the conventional 72.
+          if [ "${#TITLE}" -gt 66 ]; then
+            fail "Title is ${#TITLE} characters; keep it to 66 so the subject stays under 72 once GitHub appends the PR number."
+          fi
+
+          printf '%s\n' "Title is fine: $TITLE"
