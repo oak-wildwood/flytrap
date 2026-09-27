@@ -43,18 +43,18 @@ Judge the Changed lines against each of these six categories. Every Finding has 
 JSON value of each category is its name in lowercase: `correctness`, `security`, and so on.
 
 1. **Correctness**: logic errors, wrong conditions, off-by-one, unhandled errors or edge cases
-   (empty, null or undefined, missing, concurrent), broken contracts with callers, behaviour that doesn't match
+   (empty, null or undefined, missing, concurrent), broken contracts with callers, behavior that doesn't match
    what the code, its names or its docs say it does.
 2. **Security**: injection (shell, SQL, HTML, template), unsafe deserialization, untrusted input
-   reaching something powerful, secrets in code or logs, missing authentication or authorisation
+   reaching something powerful, secrets in code or logs, missing authentication or authorization
    checks, unsafe defaults, over-broad permissions.
 3. **Performance**: needless work or allocations in hot paths, N+1 queries or requests, missing
    indexes, unbounded growth in memory or output, blocking calls in async code. Only where the cost is plausible and real, not
-   speculative micro-optimisation.
+   speculative micro-optimization.
 4. **Maintainability**: code that is hard to follow or change safely: duplication of existing
    helpers, unclear or misleading names, overly clever code, dead code introduced by the change,
    tangled responsibilities, comments that contradict code.
-5. **Testing**: behaviour changes without tests, tests that can't fail or don't test what they
+5. **Testing**: behavior changes without tests, tests that can't fail or don't test what they
    claim, missing edge cases that the change makes likely.
 6. **Conventions**: departures from the repository's own written rules in its agent instruction
    files. Not your personal style preferences, and not rules the repository hasn't written down.
@@ -98,5 +98,7 @@ Return exactly one JSON object matching the findings schema you were given:
   - a one-line `title`, and a `body` that says why it is a problem and what to do instead;
   - optionally `suggestion`: replacement code for exactly the lines `line` to `end_line`, when
     the fix is small and certain. Leave it out otherwise.
+
+Write the `summary`, titles and bodies in American English (behavior, not behaviour).
 
 Return the JSON and nothing else: don't post it anywhere or ask for confirmation.

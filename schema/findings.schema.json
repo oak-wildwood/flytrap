@@ -8,7 +8,7 @@
   "required": ["verdict", "summary", "findings"],
   "properties": {
     "verdict": {
-      "description": "The overall judgement of the Review.",
+      "description": "The overall judgment of the Review.",
       "type": "string",
       "enum": ["approve", "approve_with_suggestions", "request_changes"]
     },

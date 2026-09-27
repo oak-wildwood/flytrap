@@ -25,7 +25,7 @@ export function loadSchema() {
 
 // A validator for the subset of JSON Schema the findings schema uses. Nuthatch has no
 // dependencies, and the model's output has already been checked by the Harness, so this is a
-// second line of defence rather than a general-purpose implementation. If the schema starts
+// second line of defense rather than a general-purpose implementation. If the schema starts
 // using a keyword not handled here, validate() throws rather than silently passing.
 const KNOWN = new Set([
   '$schema', '$id', 'title', 'description',

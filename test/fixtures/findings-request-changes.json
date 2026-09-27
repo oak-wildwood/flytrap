@@ -7,7 +7,7 @@
       "line": 2,
       "category": "maintainability",
       "severity": "nitpick",
-      "title": "Name no longer matches behaviour",
+      "title": "Name no longer matches behavior",
       "body": "If subtraction is intended, rename the function."
     },
     {

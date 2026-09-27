@@ -25,7 +25,7 @@ Changes \`add\` to subtract, which breaks every caller.
     return a + b;
   }
   \`\`\`
-- **Nitpick** · Maintainability · \`src/add.js:2\`: Name no longer matches behaviour
+- **Nitpick** · Maintainability · \`src/add.js:2\`: Name no longer matches behavior
   If subtraction is intended, rename the function.
 `);
 });
