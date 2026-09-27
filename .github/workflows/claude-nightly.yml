@@ -1,7 +1,7 @@
 name: Claude Nightly
 
 # Thin caller for oak-wildwood/gh-repo-init's reusable nightly workflow —
-# the behaviour lives in that repo's actions/nightly-pick and nightly-run,
+# the behavior lives in that repo's actions/nightly-pick and nightly-run,
 # pinned to @v1 so a fix there doesn't change this repo's Nightly until the
 # tag moves. Needs the same GitHub App + CLAUDE_CODE_OAUTH_TOKEN as
 # claude.yml, plus the standard label set (claude-task, claude-in-progress,
