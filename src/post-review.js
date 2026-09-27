@@ -5,7 +5,12 @@ import { renderReview } from './render.js';
 // to post: a Review that produced no JSON must not look like a pass (ADR 0003).
 export function parseFindings(raw) {
   if (!raw || !raw.trim()) {
-    throw new Error('the Harness returned no structured output, so there is no Review to post');
+    // claude-code-action can also skip itself (a workflow that doesn't match the default
+    // branch's copy) and still report success; that lands here too.
+    throw new Error(
+      'the Harness returned no structured output, so there is no Review to post. ' +
+      'It may have given up, hit a permission denial, or skipped itself',
+    );
   }
   let review;
   try {
