@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { parseFindings } from './post-review.js';
 import { loadSkillText, fenceFor, schemaForHarness } from './prepare.js';
 
-// The Rubric eval set (spec #48-51): a small, fixed set of diffs with known planted bugs, plus one
+// The Rubric eval set (#10): a small, fixed set of diffs with known planted bugs, plus one
 // clean diff, run through the real Claude Adapter by hand or from workflow_dispatch. This module is
 // plain functions of fixtures and Harness output; it never calls GitHub or a model itself.
 
