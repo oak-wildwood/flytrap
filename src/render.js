@@ -136,3 +136,18 @@ export function renderTooLarge({ size, cap }) {
       'generated paths with the `exclude` input), and ask again.',
   ].join('\n') + '\n';
 }
+
+// The comment posted when every changed file was excluded, so the commenter sees why there's no
+// Review instead of a bare 😕. Not tagged with MARKER, for the same reason as renderTooLarge.
+/** @param {{ excluded: string[] }} args */
+export function renderNothingToReview({ excluded }) {
+  const n = excluded.length;
+  return [
+    '## 🪰 Flytrap',
+    '',
+    `Nothing to review: every changed file (${n} file${n === 1 ? '' : 's'}) is a lockfile, build ` +
+      'output or generated code, and those are left out of Reviews.',
+    '',
+    'If one of them is hand-written, it still needs a human to look at it.',
+  ].join('\n') + '\n';
+}

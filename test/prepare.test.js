@@ -443,7 +443,10 @@ test('stops with no model call when the diff is lockfile-only', async () => {
   assert.match(result.reason, /nothing left to review/);
   // After the 👀, so the swap step gets the ids it needs to turn it 😕.
   assert.deepEqual(result.outputs, { comment_id: 1001, reaction_id: 42 });
-  assert.ok(!api.calls.some(([name]) => name === 'createComment'), 'a silent stop, not a posted comment');
+  const [, prNumber, comment] = api.calls.find(([name]) => name === 'createComment');
+  assert.equal(prNumber, 7);
+  assert.match(comment, /^## 🪰 Flytrap\n/);
+  assert.match(comment, /Nothing to review: every changed file \(\d+ files?\)/);
 });
 
 test('extends the default excludes with a custom pattern', async () => {
@@ -507,6 +510,16 @@ for (const [pattern, path, expected] of [
   ['file?.txt', 'file12.txt', false],
   ['file?.txt', 'dir/file/.txt', false], // ? does not match /
   ['a+b(c).txt', 'a+b(c).txt', true], // regex metacharacters are literal
+  ['*.[ch]', 'src/a.c', true], // fnmatch character classes
+  ['*.[ch]', 'src/a.h', true],
+  ['*.[ch]', 'src/a.o', false],
+  ['v[0-9].txt', 'v7.txt', true],
+  ['v[!0-9].txt', 'v7.txt', false],
+  ['v[!0-9].txt', 'vx.txt', true],
+  ['a[/]b', 'a/b', false], // a class never matches /
+  ['[]x].txt', ']x].txt', false],
+  ['[]x].txt', 'x.txt', true], // ] first is a literal member
+  ['odd[.txt', 'odd[.txt', true], // an unclosed [ is literal
 ]) {
   test(`glob ${pattern} ${expected ? 'matches' : 'does not match'} ${path}`, () => {
     assert.equal(globToRegExp(pattern).test(path), expected);

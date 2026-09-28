@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { loadSchema } from './schema.js';
-import { renderTooLarge } from './render.js';
+import { renderNothingToReview, renderTooLarge } from './render.js';
 
 const SKILL_URL = new URL('../skills/flytrap-review/SKILL.md', import.meta.url);
 
@@ -134,6 +134,7 @@ export async function prepare({
     // Both stops come after the 👀, so they hand the swap step its ids too: it turns 😕, since
     // no Review is coming.
     if (!diff.trim()) {
+      await api.createComment(number, renderNothingToReview({ excluded }));
       return stopAfterReaction('every changed file matches an exclude, so there is nothing left to review', reaction);
     }
     if (diff.length > maxDiffSize) {
@@ -323,6 +324,19 @@ export function globToRegExp(pattern) {
       re += '[^/]*';
     } else if (c === '?') {
       re += '[^/]';
+    } else if (c === '[' && source.indexOf(']', i + 2) !== -1) {
+      // A character class, as fnmatch reads it: `[ch]`, `[a-z]`, `[!0-9]`. A `]` right after the
+      // opening (or after `!`) is a literal member. Never matches `/`.
+      let j = i + 1;
+      const negated = source[j] === '!' || source[j] === '^';
+      if (negated) j++;
+      const start = j;
+      if (source[j] === ']') j++;
+      while (j < source.length && source[j] !== ']') j++;
+      if (j >= source.length) { re += '\\['; continue; }
+      const members = source.slice(start, j).replace(/[\\\]^]/g, (m) => `\\${m}`);
+      re += negated ? `(?!/)[^${members}]` : `(?!/)[${members}]`;
+      i = j;
     } else if ('.+^${}()|[]\\'.includes(c)) {
       re += `\\${c}`;
     } else {
