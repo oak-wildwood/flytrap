@@ -12,7 +12,7 @@ test('plans one PR comment: Verdict, then summary, then Findings', () => {
   assert.equal(action.method, 'POST');
   assert.equal(action.path, '/issues/7/comments');
   assert.equal(action.body, `${MARKER}
-## Nuthatch: ❌ Request Changes
+## Flytrap: ❌ Request Changes
 
 Changes \`add\` to subtract, which breaks every caller.
 
@@ -33,7 +33,7 @@ Changes \`add\` to subtract, which breaks every caller.
 test('says so when there are no Findings', () => {
   const { actions } = planReview({ raw: fixture('findings-approve.json'), prNumber: 7 });
   assert.equal(actions[0].body, `${MARKER}
-## Nuthatch: ✅ Approve
+## Flytrap: ✅ Approve
 
 A small, correct change.
 

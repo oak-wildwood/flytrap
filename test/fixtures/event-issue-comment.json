@@ -1,6 +1,6 @@
 {
   "action": "created",
   "issue": { "number": 3, "title": "an issue, not a PR" },
-  "comment": { "id": 1002, "body": "@nuthatch review this", "user": { "login": "oak" } },
-  "repository": { "full_name": "oak-wildwood/nuthatch" }
+  "comment": { "id": 1002, "body": "@flytrap review this", "user": { "login": "oak" } },
+  "repository": { "full_name": "oak-wildwood/flytrap" }
 }

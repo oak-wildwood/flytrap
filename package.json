@@ -1,11 +1,11 @@
 {
-  "name": "nuthatch",
+  "name": "flytrap",
   "version": "0.1.0",
   "private": true,
-  "description": "LLM-powered PR code review: @nuthatch on demand or as a PR check.",
+  "description": "LLM-powered PR code review: @flytrap on demand or as a PR check.",
   "type": "module",
   "bin": {
-    "nuthatch": "bin/nuthatch.js"
+    "flytrap": "bin/flytrap.js"
   },
   "engines": {
     "node": ">=20"

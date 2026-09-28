@@ -7,11 +7,11 @@ import { prepare } from '../src/prepare.js';
 import { planReview, postReview } from '../src/post-review.js';
 
 const USAGE = `Usage:
-  nuthatch prepare
+  flytrap prepare
       Reads the triggering event from $GITHUB_EVENT_PATH, checks the commenter may start a
       Review, and writes step outputs to $GITHUB_OUTPUT (stdout when unset).
-  nuthatch post-review --pr <number> [--findings <file>] [--plan]
-      Posts Findings JSON (from --findings, else $NUTHATCH_FINDINGS) as one PR comment.
+  flytrap post-review --pr <number> [--findings <file>] [--plan]
+      Posts Findings JSON (from --findings, else $FLYTRAP_FINDINGS) as one PR comment.
       --plan prints what would be posted as JSON and makes no GitHub calls.`;
 
 const commands = {
@@ -30,7 +30,7 @@ const commands = {
       options: { pr: { type: 'string' }, findings: { type: 'string' }, plan: { type: 'boolean' } },
     });
     const prNumber = Number(values.pr);
-    const raw = values.findings ? readFileSync(values.findings, 'utf8') : process.env.NUTHATCH_FINDINGS;
+    const raw = values.findings ? readFileSync(values.findings, 'utf8') : process.env.FLYTRAP_FINDINGS;
     // Validate before touching GitHub config, so empty output reports itself as that.
     const plan = planReview({ raw, prNumber });
     if (values.plan) {
@@ -70,7 +70,7 @@ if (!command) {
 try {
   await command(rest);
 } catch (err) {
-  const message = `nuthatch ${name} failed: ${err.message}`;
+  const message = `flytrap ${name} failed: ${err.message}`;
   console.error(`::error::${message.replace(/\n/g, '%0A')}`);
   stepSummary(message);
   process.exit(1);

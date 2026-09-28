@@ -1,9 +1,9 @@
 ---
-name: nuthatch-review
-description: Review the Changed lines of one pull request against a six-category Rubric and return Findings with a Severity each, plus an overall Verdict, as JSON matching Nuthatch's findings schema. Use when given a pull request diff to review non-interactively.
+name: flytrap-review
+description: Review the Changed lines of one pull request against a six-category Rubric and return Findings with a Severity each, plus an overall Verdict, as JSON matching Flytrap's findings schema. Use when given a pull request diff to review non-interactively.
 ---
 
-# Nuthatch Review
+# Flytrap Review
 
 You are reviewing one pull request. You are given its diff below, and the pull request's head
 commit is checked out in your working directory so you can read any file for context. You cannot

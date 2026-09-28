@@ -9,7 +9,7 @@ export function formatOutputs(outputs) {
   for (const [name, raw] of Object.entries(outputs)) {
     const value = String(raw);
     let delimiter;
-    do delimiter = `NUTHATCH_${randomBytes(16).toString('hex')}`;
+    do delimiter = `FLYTRAP_${randomBytes(16).toString('hex')}`;
     while (value.includes(delimiter));
     text += `${name}<<${delimiter}\n${value}\n${delimiter}\n`;
   }

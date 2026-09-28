@@ -1,6 +1,6 @@
 # The rubric and findings schema are the contract; only the Claude adapter ships
 
-The review rubric (a portable Agent Skill) and the findings schema are the seam between Nuthatch and
+The review rubric (a portable Agent Skill) and the findings schema are the seam between Flytrap and
 whichever harness runs the review. Nothing on either side of that seam may assume Claude, but v1
 ships only a Claude adapter. A second adapter (Codex, opencode) waits until someone needs it.
 

@@ -3,12 +3,12 @@
   "issue": {
     "number": 7,
     "title": "feat: add a thing",
-    "pull_request": { "url": "https://api.github.com/repos/oak-wildwood/nuthatch/pulls/7" }
+    "pull_request": { "url": "https://api.github.com/repos/oak-wildwood/flytrap/pulls/7" }
   },
   "comment": {
     "id": 1001,
-    "body": "@nuthatch please take a look",
+    "body": "@flytrap please take a look",
     "user": { "login": "oak" }
   },
-  "repository": { "full_name": "oak-wildwood/nuthatch" }
+  "repository": { "full_name": "oak-wildwood/flytrap" }
 }

@@ -73,15 +73,15 @@ test('ignores comments on issues', async () => {
   assert.deepEqual(api.calls, []);
 });
 
-test('ignores PR comments that do not mention @nuthatch', async () => {
-  for (const body of ['looks good', 'email me at x@nuthatch.dev', '@nuthatchery']) {
+test('ignores PR comments that do not mention @flytrap', async () => {
+  for (const body of ['looks good', 'email me at x@flytrap.dev', '@flytrapery']) {
     const e = event();
     e.comment.body = body;
     const api = fakeApi({ permission: 'admin' });
     const result = await prepare({ event: e, api });
 
     assert.equal(result.proceed, false, body);
-    assert.match(result.reason, /does not mention @nuthatch/);
+    assert.match(result.reason, /does not mention @flytrap/);
     assert.deepEqual(api.calls, []);
   }
 });
@@ -111,7 +111,7 @@ test('gives the Harness the rubric, the diff and the findings schema', async () 
   const api = fakeApi({ permission: 'write' });
   const { outputs } = await prepare({ event: event(), api });
 
-  assert.match(outputs.prompt, /# Nuthatch Review/);
+  assert.match(outputs.prompt, /# Flytrap Review/);
   assert.doesNotMatch(outputs.prompt, /^---\nname:/, 'skill frontmatter is stripped');
   assert.ok(outputs.prompt.includes(fixture('pr.diff')));
   assert.match(outputs.prompt, /Pull request: #7/);
