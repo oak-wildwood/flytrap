@@ -18,7 +18,7 @@ export const MAX_ISSUE_BODY_CHARS = 20_000;
 export const MAX_CONVENTIONS_PATHS = 100;
 
 // Decides whether this event gets a Review and, if so, gathers what the Harness needs.
-// Returns { proceed: false, reason } to stop, or { proceed: true, reason, outputs }.
+// Returns { proceed: false, reason } to stop, or { proceed: true, reason, diff, outputs }.
 //
 // Only checks on the event payload itself come before the permission check, and the permission
 // check comes before anything touches the PR (ADR 0004): a commenter without
@@ -26,7 +26,7 @@ export const MAX_CONVENTIONS_PATHS = 100;
 // the base repository's secrets.
 /**
  * @param {{ event: any, api: ReturnType<typeof import('./github.js').githubApi>, warn?: (message: string) => void }} args
- * @returns {Promise<{ proceed: boolean, reason: string, outputs?: Record<string, string|number|boolean> }>}
+ * @returns {Promise<{ proceed: boolean, reason: string, diff?: string, outputs?: Record<string, string|number|boolean> }>}
  */
 export async function prepare({ event, api, warn = (message) => console.error(`::warning::${message}`) }) {
   const comment = event.comment;
@@ -93,6 +93,8 @@ export async function prepare({ event, api, warn = (message) => console.error(`:
     return {
       proceed: true,
       reason: `@${login} asked for a Review of #${number}`,
+      // The whole diff, uncut, for post-review to place Findings against the lines the model saw.
+      diff,
       outputs: {
         pr_number: number,
         ...reaction,

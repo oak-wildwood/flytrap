@@ -28,7 +28,8 @@ jobs:
 ```
 
 A collaborator with write, maintain or admin permission then comments `@flytrap` on a pull request
-and gets back one comment with a Verdict, a summary and the Findings. See
+and gets back one comment-only review: a Verdict and summary, then an inline comment on each
+Finding, with a one-click suggested change where it has one. See
 [`examples/flytrap.yml`](examples/flytrap.yml) for the same file with comments.
 
 ### Inputs
@@ -60,7 +61,7 @@ can only read files, with `Read`, `Glob` and `Grep`.
 | Findings schema | [`schema/findings.schema.json`](schema/findings.schema.json) | What a Harness must hand back |
 | `flytrap prepare` | [`src/prepare.js`](src/prepare.js) | Checks the commenter's permission, then gathers the diff and prompt |
 | Claude Adapter | [`action.yml`](action.yml) | Runs `claude-code-action` with only `Read,Glob,Grep` and `--json-schema` |
-| `flytrap post-review` | [`src/post-review.js`](src/post-review.js) | Checks for a permission denial, validates the Findings, and posts the comment; `--plan` prints it instead |
+| `flytrap post-review` | [`src/post-review.js`](src/post-review.js) | Checks for a permission denial, validates the Findings, and posts the review; `--plan` prints it instead |
 
 The model never writes to GitHub; see [`docs/adr`](docs/adr) for why.
 
@@ -69,5 +70,6 @@ The model never writes to GitHub; see [`docs/adr`](docs/adr) for why.
 Plain Node 20+, no dependencies. `npm test` runs the `node:test` suite.
 
 ```sh
-node bin/flytrap.js post-review --pr 1 --plan --findings test/fixtures/findings-request-changes.json
+node bin/flytrap.js post-review --pr 1 --plan \
+  --findings test/fixtures/findings-mix.json --diff test/fixtures/review.diff
 ```

@@ -26,6 +26,7 @@ for (const permission of ['write', 'maintain', 'admin']) {
     assert.equal(result.outputs.pr_number, 7);
     assert.equal(result.outputs.is_fork, false);
     assert.equal(result.outputs.checkout_ref, 'refs/pull/7/head');
+    assert.equal(result.diff, fixture('pr.diff'), 'the uncut diff, for post-review to place Findings');
     assert.deepEqual(api.calls.map(([name]) => name), ['getPermission', 'getPull', 'addReaction', 'getDiff']);
     assert.deepEqual(api.calls[0], ['getPermission', 'oak']);
     assert.deepEqual(api.calls[2], ['addReaction', 1001, 'eyes']);

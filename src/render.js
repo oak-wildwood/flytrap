@@ -1,7 +1,7 @@
 /** @typedef {import('./schema.js').Review} Review */
 
-// Turns a validated Review into the markdown of one PR comment: Verdict, then summary, then
-// Findings. The text comes from the model, which read PR-controlled input, so it is treated as
+// Turns a validated Review into the markdown of one GitHub review: its body and its inline
+// comments. The text comes from the model, which read PR-controlled input, so it is treated as
 // untrusted when rendered.
 
 export const MARKER = '<!-- flytrap:review -->';
@@ -25,8 +25,16 @@ const CATEGORY = {
   spec: 'Spec',
 };
 
-/** @param {Review} review */
-export function renderReview(review) {
+/** @typedef {import('./schema.js').Finding} Finding */
+
+// The review body: Verdict, then summary, then what became of the Findings. Those that could go
+// inline are only counted here; those on lines outside the diff are listed in full, since GitHub
+// would reject them as inline comments and fail the whole review.
+/**
+ * @param {Review} review
+ * @param {{ inline: Finding[], outside: Finding[] }} placed
+ */
+export function renderSummary(review, { inline, outside }) {
   const lines = [
     MARKER,
     `## 🪰 Flytrap: ${VERDICT[review.verdict]}`,
@@ -37,24 +45,54 @@ export function renderReview(review) {
 
   if (review.findings.length === 0) {
     lines.push('No findings.');
-  } else {
-    lines.push(`### Findings (${review.findings.length})`, '');
-    const sorted = [...review.findings].sort(
-      (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
+    return lines.join('\n') + '\n';
+  }
+
+  lines.push(`### Findings (${review.findings.length})`, '');
+  if (inline.length) {
+    lines.push(`${inline.length} ${inline.length === 1 ? 'is an inline comment' : 'are inline comments'} on the diff.`);
+  }
+  if (outside.length) {
+    if (inline.length) lines.push('');
+    lines.push(
+      `${outside.length} ${outside.length === 1 ? 'is' : 'are'} outside the diff, so ` +
+        `${outside.length === 1 ? 'it is' : 'they are'} listed here:`,
+      '',
     );
-    for (const f of sorted) {
-      const range = f.end_line && f.end_line !== f.line ? `${f.line}-${f.end_line}` : `${f.line}`;
+    for (const f of bySeverity(outside)) {
       lines.push(
-        `- **${SEVERITY[f.severity]}** · ${CATEGORY[f.category]} · ${code(`${f.file}:${range}`)}: ` +
+        `- **${SEVERITY[f.severity]}** · ${CATEGORY[f.category]} · ${code(`${f.file}:${range(f)}`)}: ` +
           neutralise(oneLine(f.title)),
         indent(neutralise(f.body.trim())),
       );
-      // Inline suggested changes come with inline comments; in a summary comment the replacement
-      // code is shown as a plain block.
+      // A suggested change only works inline; here the replacement code is shown as a plain block.
       if (f.suggestion) lines.push(indent(fenced(f.suggestion)));
     }
   }
   return lines.join('\n') + '\n';
+}
+
+// One inline comment. A suggestion becomes a GitHub suggested change, which replaces exactly the
+// commented lines, matching the schema's "replacement code for exactly line to end_line".
+/** @param {Finding} f */
+export function renderInline(f) {
+  const lines = [
+    `**${SEVERITY[f.severity]}** · ${CATEGORY[f.category]}: ${neutralise(oneLine(f.title))}`,
+    '',
+    neutralise(f.body.trim()),
+  ];
+  if (f.suggestion) lines.push('', fenced(f.suggestion, 'suggestion'));
+  return lines.join('\n') + '\n';
+}
+
+export function bySeverity(findings) {
+  return [...findings].sort(
+    (a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
+  );
+}
+
+function range(f) {
+  return f.end_line && f.end_line !== f.line ? `${f.line}-${f.end_line}` : `${f.line}`;
 }
 
 // Break @mentions so a hostile diff can't make the review ping people or teams.
@@ -79,7 +117,7 @@ function code(text) {
   return ticks.length > 1 ? `${ticks} ${text} ${ticks}` : `${ticks}${text}${ticks}`;
 }
 
-function fenced(text) {
+function fenced(text, info = '') {
   const fence = '`'.repeat(Math.max(3, longestBacktickRun(text) + 1));
-  return `${fence}\n${text.replace(/\n$/, '')}\n${fence}`;
+  return `${fence}${info}\n${text.replace(/\n$/, '')}\n${fence}`;
 }

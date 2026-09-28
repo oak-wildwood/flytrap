@@ -94,7 +94,11 @@ runs:
         FLYTRAP_FINDINGS: ${{ steps.review.outputs.structured_output }}
         FLYTRAP_EXECUTION_FILE: ${{ steps.review.outputs.execution_file }}
         PR_NUMBER: ${{ steps.prepare.outputs.pr_number }}
-      run: node "$GITHUB_ACTION_PATH/bin/flytrap.js" post-review --pr "$PR_NUMBER"
+        DIFF_PATH: ${{ steps.prepare.outputs.diff_path }}
+        HEAD_SHA: ${{ steps.prepare.outputs.head_sha }}
+      run: >-
+        node "$GITHUB_ACTION_PATH/bin/flytrap.js" post-review
+        --pr "$PR_NUMBER" --diff "$DIFF_PATH" --commit "$HEAD_SHA"
 
     # Swaps the 👀 from #16 for 🚀 once the Review has posted, or 😕 if anything failed after the
     # 👀 went on — so the outcome shows up on the comment, not only in the Actions tab. `always()`

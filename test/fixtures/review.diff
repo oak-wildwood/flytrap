@@ -1,0 +1,41 @@
+diff --git a/docs/notes.md b/docs/notes.md
+index 1111111..2222222 100644
+--- a/docs/notes.md
++++ b/docs/notes.md
+@@ -1,3 +1,4 @@
+ # Notes
++++ this added line starts with two pluses
+ 
+ Some notes.
+@@ -30,2 +31,3 @@ Some notes.
+ More notes.
++A new last line.
+ The end.
+diff --git a/src/math.js b/src/math.js
+index 3333333..4444444 100644
+--- a/src/math.js
++++ b/src/math.js
+@@ -1,4 +1,4 @@
+ export function add(a, b) {
+-  return a + b;
++  return a - b;
+ }
+ 
+@@ -20,5 +20,7 @@ export function mul(a, b) {
+ export function div(a, b) {
+-  return a / b;
++  if (b === 0) return 0;
++  const q = a / b;
++  return q;
+ }
+ 
+ export const PI = 3.14;
+\ No newline at end of file
+diff --git a/src/old.js b/src/old.js
+deleted file mode 100644
+index 5555555..0000000
+--- a/src/old.js
++++ /dev/null
+@@ -1,2 +0,0 @@
+-export const x = 1;
+-export const y = 2;
