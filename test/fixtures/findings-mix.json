@@ -1,0 +1,41 @@
+{
+  "verdict": "request_changes",
+  "summary": "Adds a zero check to `div` and changes `add`, which now subtracts.",
+  "findings": [
+    {
+      "file": "src/math.js",
+      "line": 21,
+      "end_line": 23,
+      "category": "maintainability",
+      "severity": "nitpick",
+      "title": "Needless temporary",
+      "body": "`q` is returned straight away.",
+      "suggestion": "  if (b === 0) return 0;\n  return a / b;"
+    },
+    {
+      "file": "src/math.js",
+      "line": 10,
+      "category": "testing",
+      "severity": "suggestion",
+      "title": "No test for the zero check",
+      "body": "Add a test that divides by zero."
+    },
+    {
+      "file": "src/math.js",
+      "line": 2,
+      "category": "correctness",
+      "severity": "blocker",
+      "title": "add() now subtracts",
+      "body": "Use `a + b`.",
+      "suggestion": "  return a + b;"
+    },
+    {
+      "file": "docs/notes.md",
+      "line": 32,
+      "category": "conventions",
+      "severity": "nitpick",
+      "title": "Vague line",
+      "body": "Say what the new line is for."
+    }
+  ]
+}

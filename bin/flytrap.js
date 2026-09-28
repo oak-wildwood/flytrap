@@ -1,20 +1,24 @@
 #!/usr/bin/env node
-import { appendFileSync, readFileSync } from 'node:fs';
+import { appendFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { githubApi } from '../src/github.js';
 import { writeOutputs } from '../src/outputs.js';
 import { prepare } from '../src/prepare.js';
-import { planReview, postReview } from '../src/post-review.js';
+import { checkRun, planReview, postReview } from '../src/post-review.js';
 import { swapReaction } from '../src/react.js';
 
 const USAGE = `Usage:
   flytrap prepare
       Reads the triggering event from $GITHUB_EVENT_PATH, checks the commenter may start a
       Review, and writes step outputs to $GITHUB_OUTPUT (stdout when unset).
-  flytrap post-review --pr <number> [--findings <file>] [--execution <file>] [--plan]
-      Posts Findings JSON (from --findings, else $FLYTRAP_FINDINGS) as one PR comment, after
-      checking the execution transcript (from --execution, else $FLYTRAP_EXECUTION_FILE) for a
-      permission denial. --plan prints what would be posted as JSON and makes no GitHub calls.
+  flytrap post-review --pr <number> [--findings <file>] [--execution <file>] [--diff <file>] [--commit <sha>] [--plan]
+      Posts Findings JSON (from --findings, else $FLYTRAP_FINDINGS) as one PR review, with an
+      inline comment for each Finding inside the diff, after checking the execution transcript
+      (from --execution, else $FLYTRAP_EXECUTION_FILE) for a permission denial. --diff is the diff
+      the Findings were made against (fetched when omitted) and --commit the head commit it was
+      taken at. --plan prints what would be posted as JSON and makes no GitHub calls; it needs --diff.
   flytrap swap-reaction
       Swaps the 👀 reaction (from $FLYTRAP_REACTION_ID, $FLYTRAP_COMMENT_ID) for 🚀 or 😕
       depending on $FLYTRAP_OUTCOME. A no-op when $FLYTRAP_REACTION_ID is empty. Never fails
@@ -31,7 +35,15 @@ const commands = {
       if (err.outputs) writeOutputs(err.outputs);
       throw err;
     }
-    writeOutputs({ proceed: result.proceed, reason: result.reason, ...result.outputs });
+    const outputs = { proceed: result.proceed, reason: result.reason, ...result.outputs };
+    // A file rather than an output: step outputs are capped at 1 MB, and post-review needs the
+    // exact diff the model reviewed, not whatever the PR shows once someone pushes again.
+    if (result.proceed) {
+      const dir = mkdtempSync(join(process.env.RUNNER_TEMP || tmpdir(), 'flytrap-'));
+      outputs.diff_path = join(dir, 'pr.diff');
+      writeFileSync(outputs.diff_path, result.diff);
+    }
+    writeOutputs(outputs);
     const line = `${result.proceed ? 'Reviewing' : 'Not reviewing'}: ${result.reason}`;
     console.error(line);
     stepSummary(line);
@@ -44,6 +56,8 @@ const commands = {
         pr: { type: 'string' },
         findings: { type: 'string' },
         execution: { type: 'string' },
+        diff: { type: 'string' },
+        commit: { type: 'string' },
         plan: { type: 'boolean' },
       },
     });
@@ -51,13 +65,18 @@ const commands = {
     const raw = values.findings ? readFileSync(values.findings, 'utf8') : process.env.FLYTRAP_FINDINGS;
     const executionPath = values.execution ?? process.env.FLYTRAP_EXECUTION_FILE;
     const executionRaw = executionPath ? readFileSync(executionPath, 'utf8') : undefined;
+    const commitId = values.commit || undefined;
     // Validate before touching GitHub config, so empty output or a denial reports itself as that.
-    const plan = planReview({ raw, executionRaw, prNumber });
+    checkRun({ raw, executionRaw });
     if (values.plan) {
+      if (!values.diff) throw new Error('--plan needs --diff, since it makes no GitHub calls');
+      const plan = planReview({ raw, executionRaw, prNumber, diff: readFileSync(values.diff, 'utf8'), commitId });
       console.log(JSON.stringify(plan, null, 2));
       return;
     }
-    await postReview({ raw, executionRaw, prNumber, api: apiFromEnv() });
+    const api = apiFromEnv();
+    const diff = values.diff ? readFileSync(values.diff, 'utf8') : await api.getDiff(prNumber);
+    await postReview({ raw, executionRaw, prNumber, diff, commitId, api });
     console.error(`Posted the Review on #${prNumber}`);
   },
 

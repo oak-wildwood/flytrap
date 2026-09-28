@@ -46,8 +46,9 @@ export function githubApi({ token, repository, fetch = globalThis.fetch, baseUrl
     deleteReaction(commentId, reactionId) {
       return request('DELETE', `/issues/comments/${commentId}/reactions/${reactionId}`);
     },
-    createComment(number, body) {
-      return request('POST', `/issues/${number}/comments`, { body: { body } });
+    // `review` is { commit_id?, event, body, comments: [{ path, line, side, start_line?, ... }] }.
+    createReview(number, review) {
+      return request('POST', `/pulls/${number}/reviews`, { body: review });
     },
   };
 }
