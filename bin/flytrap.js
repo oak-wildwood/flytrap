@@ -8,6 +8,7 @@ import { writeOutputs } from '../src/outputs.js';
 import { parseMaxDiffSize, prepare } from '../src/prepare.js';
 import { checkRun, planReview, postReview } from '../src/post-review.js';
 import { swapReaction } from '../src/react.js';
+import { buildReport, listFixtures, prepareFixture } from '../src/eval.js';
 
 const USAGE = `Usage:
   flytrap prepare
@@ -22,7 +23,14 @@ const USAGE = `Usage:
   flytrap swap-reaction
       Swaps the 👀 reaction (from $FLYTRAP_REACTION_ID, $FLYTRAP_COMMENT_ID) for 🚀 or 😕
       depending on $FLYTRAP_OUTCOME. A no-op when $FLYTRAP_REACTION_ID is empty. Never fails
-      the job: a failed swap is logged to the job summary instead.`;
+      the job: a failed swap is logged to the job summary instead.
+  flytrap eval-list
+      Prints the Rubric eval set's fixture names as a JSON array.
+  flytrap eval-prepare --fixture <name>
+      Writes one eval fixture's prompt and findings schema to $GITHUB_OUTPUT (stdout when unset).
+  flytrap eval-report --dir <path>
+      Reads each fixture's raw Harness output from <path>/<fixture>.json and prints the eval
+      report (also appended to $GITHUB_STEP_SUMMARY when set).`;
 
 const commands = {
   async prepare() {
@@ -101,6 +109,24 @@ const commands = {
     } catch (err) {
       warn(`could not swap the 👀 reaction for the outcome: ${err.message}`);
     }
+  },
+
+  async 'eval-list'() {
+    console.log(JSON.stringify(listFixtures()));
+  },
+
+  async 'eval-prepare'(argv) {
+    const { values } = parseArgs({ args: argv, options: { fixture: { type: 'string' } } });
+    if (!values.fixture) throw new Error('--fixture <name> is required');
+    writeOutputs(prepareFixture(values.fixture));
+  },
+
+  async 'eval-report'(argv) {
+    const { values } = parseArgs({ args: argv, options: { dir: { type: 'string' } } });
+    if (!values.dir) throw new Error('--dir <path> is required');
+    const report = buildReport(values.dir);
+    console.log(report);
+    stepSummary(report);
   },
 };
 

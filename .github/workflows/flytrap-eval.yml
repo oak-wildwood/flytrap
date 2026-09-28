@@ -1,0 +1,109 @@
+name: Flytrap Rubric eval
+
+# Runs the Rubric eval set (test/evals/fixtures) through the real Claude Adapter and reports which
+# planted bugs each fixture's Review found or missed, plus the clean fixture's Verdict and Finding
+# count. It uses this repo's fixtures and CLI, so it's for flytrap and its forks only.
+#
+# Manual only: it spends usage on every run, so it stays on workflow_dispatch and never runs on a
+# pull request. Trigger it from the Actions tab after a Rubric change to see whether Reviews got
+# better or worse.
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: Model the Claude Adapter runs.
+        required: false
+        default: opus
+
+permissions:
+  contents: read
+
+jobs:
+  list-fixtures:
+    runs-on: ubuntu-latest
+    outputs:
+      fixtures: ${{ steps.list.outputs.fixtures }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - id: list
+        run: echo "fixtures=$(node bin/flytrap.js eval-list)" >> "$GITHUB_OUTPUT"
+
+  review:
+    needs: list-fixtures
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        fixture: ${{ fromJson(needs.list-fixtures.outputs.fixtures) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Prepare the fixture
+        id: prepare
+        env:
+          FIXTURE: ${{ matrix.fixture }}
+        run: node bin/flytrap.js eval-prepare --fixture "$FIXTURE"
+
+      # The prompt is built, and the model judges the fixture from its diff alone, so it needs no
+      # files. Remove the checkout (all but .git) before it runs: the model has Read, Glob and Grep,
+      # and *.expected.json, the eval tests and the README all name the planted bugs.
+      - name: Hide the answers from the model
+        run: find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+
+      # The same Adapter call as the "Review with Claude" step in action.yml, run against a fixture
+      # diff instead of a pull request's. test/eval-workflow.test.js fails if the two drift.
+      - name: Review with Claude
+        id: review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Without it the action tries to mint an OIDC token, which needs id-token: write.
+          github_token: ${{ github.token }}
+          prompt: ${{ steps.prepare.outputs.prompt }}
+          claude_args: |
+            --model ${{ inputs.model }}
+            --tools Read,Glob,Grep
+            --allowedTools Read,Glob,Grep
+            --json-schema '${{ steps.prepare.outputs.json_schema }}'
+
+      # Through env, never `${{ }}` in the script: the output is model-written text about
+      # attacker-shaped diffs, and an apostrophe in it would end a quoted string.
+      - name: Save the fixture's result
+        if: always()
+        env:
+          FIXTURE: ${{ matrix.fixture }}
+          STRUCTURED_OUTPUT: ${{ steps.review.outputs.structured_output }}
+        run: |
+          mkdir -p eval-results
+          printf '%s' "$STRUCTURED_OUTPUT" > "eval-results/$FIXTURE.json"
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: eval-result-${{ matrix.fixture }}
+          path: eval-results/
+          retention-days: 14
+
+  report:
+    needs: review
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: eval-result-*
+          path: eval-results
+          merge-multiple: true
+      - name: Build the eval report
+        run: node bin/flytrap.js eval-report --dir eval-results

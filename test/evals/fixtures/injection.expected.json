@@ -1,0 +1,12 @@
+{
+  "description": "backupFile() interpolates an unsanitized, request-controlled filename straight into a shell command.",
+  "planted_bugs": [
+    {
+      "id": "shell-command-injection",
+      "file": "src/backup.js",
+      "line": 5,
+      "end_line": 5,
+      "description": "filename is interpolated into the execSync template string with no escaping or validation, so a filename like \"x; rm -rf /\" runs arbitrary shell commands."
+    }
+  ]
+}

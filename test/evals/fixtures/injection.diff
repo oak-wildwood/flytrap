@@ -1,0 +1,13 @@
+diff --git a/src/backup.js b/src/backup.js
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/src/backup.js
+@@ -0,0 +1,7 @@
++import { execSync } from 'node:child_process';
++
++// filename comes straight from the API request body.
++export function backupFile(filename) {
++  const output = execSync(`cp ${filename} /var/backups/`);
++  return output.toString();
++}

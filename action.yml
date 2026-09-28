@@ -81,6 +81,8 @@ runs:
         persist-credentials: false
 
     # The Claude Adapter. Read-only tools; Findings come back as structured_output (ADR 0003).
+    # .github/workflows/flytrap-eval.yml repeats this call to run the Rubric eval set. Change them
+    # together, or the eval stops measuring what Reviews run; test/eval-workflow.test.js checks.
     - name: Review with Claude
       id: review
       if: steps.prepare.outputs.proceed == 'true'
