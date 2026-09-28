@@ -29,7 +29,7 @@ const CATEGORY = {
 export function renderReview(review) {
   const lines = [
     MARKER,
-    `## Flytrap: ${VERDICT[review.verdict]}`,
+    `## 🪰 Flytrap: ${VERDICT[review.verdict]}`,
     '',
     neutralise(review.summary.trim()),
     '',
