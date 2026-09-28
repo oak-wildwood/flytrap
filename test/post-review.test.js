@@ -4,6 +4,8 @@ import { planReview, postReview } from '../src/post-review.js';
 import { MARKER } from '../src/render.js';
 import { fakeApi, fixture } from './helpers.js';
 
+const denialExecution = () => fixture('execution-denial.json');
+
 test('plans one PR comment: Verdict, then summary, then Findings', () => {
   const plan = planReview({ raw: fixture('findings-request-changes.json'), prNumber: 7 });
 
@@ -74,6 +76,25 @@ test('fails without a PR number', () => {
   assert.throws(() => planReview({ raw: fixture('findings-approve.json'), prNumber: NaN }), /pull request number/);
 });
 
+test('fails on a permission denial, naming the tool and its input', () => {
+  assert.throws(
+    () => planReview({ raw: fixture('findings-approve.json'), executionRaw: denialExecution(), prNumber: 7 }),
+    /denied permission to use Bash with input \{"command":"rm -rf \/"\}/,
+  );
+});
+
+test('checks for a denial even when there is no findings JSON at all', () => {
+  assert.throws(
+    () => planReview({ raw: '', executionRaw: denialExecution(), prNumber: 7 }),
+    /denied permission to use Bash/,
+  );
+});
+
+test('a clean execution transcript does not affect a valid Review', () => {
+  const plan = planReview({ raw: fixture('findings-approve.json'), executionRaw: fixture('execution-clean.json'), prNumber: 7 });
+  assert.equal(plan.actions.length, 1);
+});
+
 test('posts exactly what it planned', async () => {
   const raw = fixture('findings-request-changes.json');
   const api = fakeApi();
@@ -85,5 +106,14 @@ test('posts exactly what it planned', async () => {
 test('posts nothing when the output is invalid', async () => {
   const api = fakeApi();
   await assert.rejects(postReview({ raw: '', prNumber: 7, api }));
+  assert.deepEqual(api.calls, []);
+});
+
+test('posts nothing on a permission denial, even with valid findings', async () => {
+  const api = fakeApi();
+  await assert.rejects(
+    postReview({ raw: fixture('findings-approve.json'), executionRaw: denialExecution(), prNumber: 7, api }),
+    /denied permission to use Bash/,
+  );
   assert.deepEqual(api.calls, []);
 });

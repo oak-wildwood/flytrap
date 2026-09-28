@@ -82,12 +82,30 @@ runs:
           --allowedTools Read,Glob,Grep
           --json-schema '${{ steps.prepare.outputs.json_schema }}'
 
-    # Fails the job when structured_output is empty or doesn't match the schema.
+    # Fails the job when structured_output is empty, doesn't match the schema, or the execution
+    # transcript shows a permission denial (ADR 0003). Either way, the reason lands in the job
+    # summary and nothing gets posted.
     - name: Post the Review
       if: steps.prepare.outputs.proceed == 'true'
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         FLYTRAP_FINDINGS: ${{ steps.review.outputs.structured_output }}
+        FLYTRAP_EXECUTION_FILE: ${{ steps.review.outputs.execution_file }}
         PR_NUMBER: ${{ steps.prepare.outputs.pr_number }}
       run: node "$GITHUB_ACTION_PATH/bin/flytrap.js" post-review --pr "$PR_NUMBER"
+
+    # Swaps the 👀 from #16 for 🚀 once a Review (or any other Flytrap comment) has posted, or 😕
+    # if the job failed after the 👀 went on — so the outcome shows up on the comment, not only in
+    # the Actions tab. `always()` so this runs even when an earlier step failed; a no-op when no
+    # 👀 went on (a stop before the write-access check). Never fails the job itself: see
+    # `flytrap swap-reaction` and src/react.js.
+    - name: Swap the 👀 reaction for the outcome
+      if: always() && steps.prepare.outputs.reaction_id != ''
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        FLYTRAP_COMMENT_ID: ${{ steps.prepare.outputs.comment_id }}
+        FLYTRAP_REACTION_ID: ${{ steps.prepare.outputs.reaction_id }}
+        FLYTRAP_OUTCOME: ${{ job.status }}
+      run: node "$GITHUB_ACTION_PATH/bin/flytrap.js" swap-reaction

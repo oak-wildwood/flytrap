@@ -5,14 +5,20 @@ import { githubApi } from '../src/github.js';
 import { writeOutputs } from '../src/outputs.js';
 import { prepare } from '../src/prepare.js';
 import { planReview, postReview } from '../src/post-review.js';
+import { swapReaction } from '../src/react.js';
 
 const USAGE = `Usage:
   flytrap prepare
       Reads the triggering event from $GITHUB_EVENT_PATH, checks the commenter may start a
       Review, and writes step outputs to $GITHUB_OUTPUT (stdout when unset).
-  flytrap post-review --pr <number> [--findings <file>] [--plan]
-      Posts Findings JSON (from --findings, else $FLYTRAP_FINDINGS) as one PR comment.
-      --plan prints what would be posted as JSON and makes no GitHub calls.`;
+  flytrap post-review --pr <number> [--findings <file>] [--execution <file>] [--plan]
+      Posts Findings JSON (from --findings, else $FLYTRAP_FINDINGS) as one PR comment, after
+      checking the execution transcript (from --execution, else $FLYTRAP_EXECUTION_FILE) for a
+      permission denial. --plan prints what would be posted as JSON and makes no GitHub calls.
+  flytrap swap-reaction
+      Swaps the 👀 reaction (from $FLYTRAP_REACTION_ID, $FLYTRAP_COMMENT_ID) for 🚀 or 😕
+      depending on $FLYTRAP_OUTCOME. A no-op when $FLYTRAP_REACTION_ID is empty. Never fails
+      the job: a failed swap is logged to the job summary instead.`;
 
 const commands = {
   async prepare() {
@@ -27,18 +33,47 @@ const commands = {
   async 'post-review'(argv) {
     const { values } = parseArgs({
       args: argv,
-      options: { pr: { type: 'string' }, findings: { type: 'string' }, plan: { type: 'boolean' } },
+      options: {
+        pr: { type: 'string' },
+        findings: { type: 'string' },
+        execution: { type: 'string' },
+        plan: { type: 'boolean' },
+      },
     });
     const prNumber = Number(values.pr);
     const raw = values.findings ? readFileSync(values.findings, 'utf8') : process.env.FLYTRAP_FINDINGS;
-    // Validate before touching GitHub config, so empty output reports itself as that.
-    const plan = planReview({ raw, prNumber });
+    const executionPath = values.execution ?? process.env.FLYTRAP_EXECUTION_FILE;
+    const executionRaw = executionPath ? readFileSync(executionPath, 'utf8') : undefined;
+    // Validate before touching GitHub config, so empty output or a denial reports itself as that.
+    const plan = planReview({ raw, executionRaw, prNumber });
     if (values.plan) {
       console.log(JSON.stringify(plan, null, 2));
       return;
     }
-    await postReview({ raw, prNumber, api: apiFromEnv() });
+    await postReview({ raw, executionRaw, prNumber, api: apiFromEnv() });
     console.error(`Posted the Review on #${prNumber}`);
+  },
+
+  async 'swap-reaction'() {
+    const reactionId = process.env.FLYTRAP_REACTION_ID ?? '';
+    if (!reactionId) return;
+    const warn = (message) => {
+      console.error(`::warning::${message}`);
+      stepSummary(message);
+    };
+    // Never lets a swap failure reach the top-level catch below and flip the job's own outcome
+    // (the thing it's trying to report in the first place).
+    try {
+      await swapReaction({
+        commentId: Number(process.env.FLYTRAP_COMMENT_ID),
+        reactionId,
+        outcome: process.env.FLYTRAP_OUTCOME,
+        api: apiFromEnv(),
+        warn,
+      });
+    } catch (err) {
+      warn(`could not swap the 👀 reaction for the outcome: ${err.message}`);
+    }
   },
 };
 

@@ -20,6 +20,7 @@ for (const permission of ['write', 'maintain', 'admin']) {
     assert.deepEqual(api.calls[0], ['getPermission', 'oak']);
     assert.deepEqual(api.calls[2], ['addReaction', 1001, 'eyes']);
     assert.equal(result.outputs.reaction_id, 42);
+    assert.equal(result.outputs.comment_id, 1001);
   });
 }
 

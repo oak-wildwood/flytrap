@@ -68,6 +68,7 @@ export async function prepare({ event, api, warn = (message) => console.error(`:
     outputs: {
       pr_number: number,
       // So a later step can swap the 👀 for the outcome.
+      comment_id: comment.id,
       reaction_id: reactionId,
       head_sha: pull.head.sha,
       is_fork: headRepo !== baseRepo,

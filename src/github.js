@@ -19,6 +19,7 @@ export function githubApi({ token, repository, fetch = globalThis.fetch, baseUrl
     if (!res.ok) {
       throw new Error(`GitHub ${method} ${path} failed: ${res.status} ${await res.text()}`);
     }
+    if (res.status === 204) return null; // DELETE endpoints answer with no body.
     return accept.endsWith('diff') ? res.text() : res.json();
   }
 
@@ -37,6 +38,9 @@ export function githubApi({ token, repository, fetch = globalThis.fetch, baseUrl
     // Returns the reaction; GitHub answers 200 with the existing one if it's already there.
     addReaction(commentId, content) {
       return request('POST', `/issues/comments/${commentId}/reactions`, { body: { content } });
+    },
+    deleteReaction(commentId, reactionId) {
+      return request('DELETE', `/issues/comments/${commentId}/reactions/${reactionId}`);
     },
     createComment(number, body) {
       return request('POST', `/issues/${number}/comments`, { body: { body } });

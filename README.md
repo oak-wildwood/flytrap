@@ -16,7 +16,7 @@ Findings. Comments from anyone else are ignored before any checkout or model cal
 | Findings schema | [`schema/findings.schema.json`](schema/findings.schema.json) | What a Harness must hand back |
 | `flytrap prepare` | [`src/prepare.js`](src/prepare.js) | Checks the commenter's permission, then gathers the diff and prompt |
 | Claude Adapter | [`action.yml`](action.yml) | Runs `claude-code-action` with only `Read,Glob,Grep` and `--json-schema` |
-| `flytrap post-review` | [`src/post-review.js`](src/post-review.js) | Validates the Findings and posts the comment; `--plan` prints it instead |
+| `flytrap post-review` | [`src/post-review.js`](src/post-review.js) | Checks for a permission denial, validates the Findings, and posts the comment; `--plan` prints it instead |
 
 The model never writes to GitHub; see [`docs/adr`](docs/adr) for why.
 
