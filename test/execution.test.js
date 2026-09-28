@@ -44,6 +44,22 @@ test('ignores a tool_result error that is not a permission denial', () => {
   assert.equal(findDenial(raw), null);
 });
 
+test('finds a denial of an allowed tool, such as a Read outside the checkout', () => {
+  const message = "Claude requested permissions to read from /etc/passwd, but you haven't granted it yet.";
+  const raw = JSON.stringify([
+    {
+      type: 'assistant',
+      message: { content: [{ type: 'tool_use', id: 't1', name: 'Read', input: { file_path: '/etc/passwd' } }] },
+    },
+    {
+      type: 'user',
+      message: { content: [{ type: 'tool_result', tool_use_id: 't1', is_error: true, content: message }] },
+    },
+  ]);
+
+  assert.deepEqual(findDenial(raw), { tool: 'Read', input: { file_path: '/etc/passwd' }, message });
+});
+
 test('ignores an EACCES error from an allowed tool', () => {
   const raw = JSON.stringify([
     {
