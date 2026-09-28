@@ -9,7 +9,7 @@ export function jsonFixture(name) {
 }
 
 // A stand-in for src/github.js that answers from fixtures and records every call.
-export function fakeApi({ permission, roleName = permission, pull = 'pull-same-repo.json', diff = 'pr.diff' } = {}) {
+export function fakeApi({ permission, roleName = permission, pull = 'pull-same-repo.json', diff = 'pr.diff', issues = {} } = {}) {
   const calls = [];
   return {
     calls,
@@ -24,6 +24,12 @@ export function fakeApi({ permission, roleName = permission, pull = 'pull-same-r
     async getDiff(number) {
       calls.push(['getDiff', number]);
       return fixture(diff);
+    },
+    async getIssue(number) {
+      calls.push(['getIssue', number]);
+      const issue = issues[number];
+      if (!issue) throw new Error(`no fixture issue #${number}`);
+      return issue;
     },
     async addReaction(commentId, content) {
       calls.push(['addReaction', commentId, content]);
