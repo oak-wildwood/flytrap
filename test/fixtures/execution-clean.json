@@ -23,6 +23,7 @@
     "subtype": "success",
     "is_error": false,
     "duration_ms": 4000,
+    "permission_denials": [],
     "usage": { "input_tokens": 100, "output_tokens": 50 }
   }
 ]

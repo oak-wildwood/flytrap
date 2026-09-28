@@ -88,6 +88,7 @@ test('truncates a large denied input so the failure reason stays readable', () =
   const executionRaw = JSON.stringify([
     { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Write', input: { file_path: 'a.js', content } }] } },
     { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', is_error: true, content: 'Claude requested permissions to use Write.' }] } },
+    { type: 'result', permission_denials: [{ tool_name: 'Write', tool_use_id: 't1', tool_input: { file_path: 'a.js', content } }] },
   ]);
   assert.throws(
     () => planReview({ raw: fixture('findings-approve.json'), executionRaw, prNumber: 7 }),

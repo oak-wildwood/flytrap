@@ -62,18 +62,17 @@ const commands = {
   },
 
   async 'swap-reaction'() {
-    const reactionId = process.env.FLYTRAP_REACTION_ID ?? '';
-    if (!reactionId) return;
     const warn = (message) => {
       console.error(`::warning::${message}`);
       stepSummary(message);
     };
-    // Never lets a swap failure reach the top-level catch below and flip the job's own outcome
-    // (the thing it's trying to report in the first place).
+    // swapReaction skips an empty reaction id and catches its own API failures. This catch is
+    // for a throw before it runs, e.g. from apiFromEnv(), so that can't reach the top-level catch
+    // below and flip the job's own outcome (the thing it's trying to report in the first place).
     try {
       await swapReaction({
         commentId: Number(process.env.FLYTRAP_COMMENT_ID),
-        reactionId,
+        reactionId: process.env.FLYTRAP_REACTION_ID ?? '',
         outcome: process.env.FLYTRAP_OUTCOME,
         api: apiFromEnv(),
         warn,

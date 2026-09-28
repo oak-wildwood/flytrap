@@ -8,7 +8,7 @@
  * @param {{ commentId: number, reactionId: string, outcome: string, api: ReturnType<typeof import('./github.js').githubApi>, warn?: (message: string) => void }} args
  */
 export async function swapReaction({ commentId, reactionId, outcome, api, warn = (message) => console.error(`::warning::${message}`) }) {
-  // No 👀 went on (a stop before the write-access check, or the reaction itself failed): leave no
+  // No 👀 went on (a stop before the Review was confirmed, or the reaction itself failed): leave no
   // reaction at all rather than adding one now.
   if (!reactionId) return;
   const content = outcome === 'success' ? 'rocket' : 'confused';

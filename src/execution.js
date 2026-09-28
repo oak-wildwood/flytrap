@@ -1,18 +1,16 @@
-// Scans the Harness's execution transcript for a denied tool call. `raw` is the content of
+// Finds a denied tool call in the Harness's execution transcript. `raw` is the content of
 // claude-code-action's `execution_file` output: a JSON array of the raw Claude Agent SDK
-// messages for the run. The Adapter runs with --allowedTools Read,Glob,Grep (ADR 0003, action.yml),
-// so anything else comes back as a tool_result the CLI marks is_error and mentions "permission"
-// in, since headless mode has no one to ask. A run can still produce well-formed Findings after a
-// denial — the model just works around the missing tool — so this has to be checked on its own,
-// not inferred from bad output.
+// messages for the run, ending in a `result` message. A run can still produce well-formed
+// Findings after a denial — the model just works around the missing tool — so ADR 0003 has this
+// checked on its own, not inferred from bad output.
 //
-// Operating-system errors are not denials, even though they mention "permission": a Read of an
-// unreadable file fails with `EACCES: permission denied`, an ordinary tool failure the model can
-// work around. This goes by the message, not the tool: an allowed tool can still be denied, e.g.
-// a Read outside the checkout ("requested permissions to read from …, but you haven't granted
-// it yet"), and ADR 0003 says any denial fails the job.
-const OS_ERROR = /\b(EACCES|EPERM)\b/;
-
+// The `result` message's `permission_denials` is the source of truth: the SDK's own record of
+// every tool call it refused, as { tool_name, tool_use_id, tool_input }. Scanning tool errors for
+// the word "permission" can't tell a denial from an ordinary failure (`EACCES`, ripgrep's
+// `Permission denied (os error 13)`), and misses a denial worded any other way.
+//
+// No `result` message means the run died before finishing. That isn't a denial; the missing
+// structured output fails the job on its own.
 export function findDenial(raw) {
   if (!raw || !raw.trim()) return null;
   let entries;
@@ -23,23 +21,24 @@ export function findDenial(raw) {
   }
   if (!Array.isArray(entries)) return null;
 
-  const toolUses = new Map();
-  for (const block of contentBlocks(entries)) {
-    if (block?.type === 'tool_use') toolUses.set(block.id, { tool: block.name, input: block.input });
-  }
-  for (const block of contentBlocks(entries)) {
-    if (block?.type !== 'tool_result' || !block.is_error) continue;
-    const message = contentText(block.content);
-    if (!/permission/i.test(message) || OS_ERROR.test(message)) continue;
-    return { ...(toolUses.get(block.tool_use_id) ?? { tool: 'unknown', input: null }), message };
-  }
-  return null;
+  const result = entries.findLast((entry) => entry?.type === 'result');
+  const [denial] = result?.permission_denials ?? [];
+  if (!denial) return null;
+  return {
+    tool: denial.tool_name ?? 'unknown',
+    input: denial.tool_input ?? null,
+    // What the model was told, when the transcript has it. For the job summary only.
+    message: toolResultText(entries, denial.tool_use_id),
+  };
 }
 
-function* contentBlocks(entries) {
+function toolResultText(entries, toolUseId) {
   for (const entry of entries) {
-    yield* entry?.message?.content ?? [];
+    for (const block of entry?.message?.content ?? []) {
+      if (block?.type === 'tool_result' && block.tool_use_id === toolUseId) return contentText(block.content);
+    }
   }
+  return '';
 }
 
 function contentText(content) {

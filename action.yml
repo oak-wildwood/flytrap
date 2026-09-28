@@ -99,7 +99,7 @@ runs:
     # Swaps the 👀 from #16 for 🚀 once the Review has posted, or 😕 if anything failed after the
     # 👀 went on — so the outcome shows up on the comment, not only in the Actions tab. `always()`
     # so this runs even when an earlier step failed; a no-op when no 👀 went on (a stop before the
-    # write-access check). Never fails the job itself: see `flytrap swap-reaction` and src/react.js.
+    # Review was confirmed). Never fails the job itself: see `flytrap swap-reaction` and src/react.js.
     #
     # The outcome is the post step's own, not `job.status`: inside a composite action, job.status
     # can report the job as it was before this action started, so a failed post could still read
