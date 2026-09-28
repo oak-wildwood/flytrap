@@ -55,8 +55,10 @@ secrets: the PR's head commit is checked out by SHA through the base repository,
 runs without needing access to the fork, and nothing in the checkout is ever executed — the model
 can only read files, with `Read`, `Glob` and `Grep`.
 
-Lockfiles, build output, minified files and other generated paths are dropped from the diff before
-review; the `exclude` input adds your own patterns on top. A diff still over `max_diff_size`
+Lockfiles, build output, minified files, other generated paths and anything your default branch's
+`.gitattributes` marks `linguist-generated` are dropped from the diff before review; the `exclude`
+input adds your own patterns on top. Excluded files are still listed for the model, which reviews
+any that look hand-written. A diff still over `max_diff_size`
 characters (default 100000) gets a short "too large to review" comment instead of a model call.
 
 ## How it fits together

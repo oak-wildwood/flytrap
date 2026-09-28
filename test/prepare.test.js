@@ -4,6 +4,7 @@ import {
   prepare,
   buildPrompt,
   filterDiff,
+  parseGitattributes,
   globToRegExp,
   parseMaxDiffSize,
   DEFAULT_EXCLUDES,
@@ -31,7 +32,7 @@ for (const permission of ['write', 'maintain', 'admin']) {
     assert.equal(result.outputs.is_fork, false);
     assert.equal(result.outputs.checkout_ref, '1111111111111111111111111111111111111111');
     assert.equal(result.diff, fixture('pr.diff'), 'the uncut diff, for post-review to place Findings');
-    assert.deepEqual(api.calls.map(([name]) => name), ['getPermission', 'getPull', 'addReaction', 'getDiff', 'getPull']);
+    assert.deepEqual(api.calls.map(([name]) => name), ['getPermission', 'getPull', 'addReaction', 'getDiff', 'getPull', 'getFileText']);
     assert.deepEqual(api.calls[0], ['getPermission', 'oak']);
     assert.deepEqual(api.calls[2], ['addReaction', 1001, 'eyes']);
     assert.equal(result.outputs.reaction_id, 42);
@@ -423,14 +424,15 @@ test('fails, with the ids for the swap, when the PR moves while its diff is fetc
 test('filterDiff drops build output and keeps the rest', () => {
   const diff = fixture('pr.diff') +
     'diff --git a/dist/bundle.js b/dist/bundle.js\n@@ -1 +1 @@\n-old\n+new\n';
-  const filtered = filterDiff(diff, DEFAULT_EXCLUDES);
+  const { diff: filtered, excluded } = filterDiff(diff, DEFAULT_EXCLUDES);
   assert.ok(filtered.includes('src/add.js'));
   assert.ok(!filtered.includes('dist/bundle.js'));
+  assert.deepEqual(excluded, ['dist/bundle.js']);
 });
 
 test('filterDiff drops nested lockfiles by basename', () => {
   const diff = 'diff --git a/packages/api/package-lock.json b/packages/api/package-lock.json\n@@ -1 +1 @@\n-a\n+b\n';
-  assert.equal(filterDiff(diff, DEFAULT_EXCLUDES).trim(), '');
+  assert.equal(filterDiff(diff, DEFAULT_EXCLUDES).diff.trim(), '');
 });
 
 test('stops with no model call when the diff is lockfile-only', async () => {
@@ -453,7 +455,10 @@ test('extends the default excludes with a custom pattern', async () => {
   const result = await prepare({ event: event(), api, excludes: ['web/generated/**'] });
   assert.equal(result.proceed, true);
   assert.ok(result.outputs.prompt.includes('src/add.js'));
-  assert.ok(!result.outputs.prompt.includes('web/generated/output.js'));
+  // Out of the diff, but named in the Excluded files list so it isn't dropped unseen.
+  const [beforeDiff, reviewedDiff] = result.outputs.prompt.split('Everything between the fences below is the diff');
+  assert.ok(!reviewedDiff.includes('web/generated/output.js'));
+  assert.match(beforeDiff, /# Excluded files[\s\S]*\nweb\/generated\/output\.js\n/);
 });
 
 test('posts a "too large" comment and stops before the Adapter when over the cap', async () => {
@@ -514,7 +519,7 @@ test('filterDiff drops a renamed file when either side matches', () => {
     'diff --git a/build/b.js b/src/b.js\nsimilarity index 100%\nrename from build/b.js\nrename to src/b.js\n',
     'diff --git a/src/c.js b/src/c.js\n@@ -1 +1 @@\n-a\n+b\n',
   ].join('');
-  const kept = filterDiff(diff, DEFAULT_EXCLUDES);
+  const { diff: kept } = filterDiff(diff, DEFAULT_EXCLUDES);
   assert.ok(!kept.includes('dist/a.js'));
   assert.ok(!kept.includes('build/b.js'));
   assert.ok(kept.includes('src/c.js'));
@@ -533,3 +538,59 @@ for (const raw of ['100k', '1e5', '-5', '0', '1.5', 'abc', '_100', '100__000']) 
     assert.throws(() => parseMaxDiffSize(raw), /max_diff_size must be a positive whole number/);
   });
 }
+
+// --- linguist-generated from the base commit's .gitattributes ---
+
+test('parseGitattributes keeps linguist-generated patterns and honors later unsets', () => {
+  const text = [
+    '# comment',
+    '*.png binary',
+    'api/gen/** linguist-generated',
+    '/schema.graphql linguist-generated=true',
+    'docs/*.md linguist-generated',
+    'docs/*.md -linguist-generated',
+    'vendor/** linguist-vendored linguist-generated=false',
+  ].join('\n');
+  assert.deepEqual(parseGitattributes(text), ['api/gen/**', '/schema.graphql']);
+});
+
+test('a leading / anchors a pattern to the root', () => {
+  assert.equal(globToRegExp('/schema.graphql').test('schema.graphql'), true);
+  assert.equal(globToRegExp('/schema.graphql').test('sub/schema.graphql'), false);
+  assert.equal(globToRegExp('schema.graphql').test('sub/schema.graphql'), true);
+});
+
+test("excludes the base commit's linguist-generated paths", async () => {
+  const api = fakeApi({ permission: 'write', diff: 'pr-with-generated.diff', gitattributes: 'web/generated/** linguist-generated\n' });
+  const result = await prepare({ event: event(), api });
+
+  assert.deepEqual(api.calls.find(([name]) => name === 'getFileText'), ['getFileText', '.gitattributes', jsonFixture('pull-same-repo.json').base.sha]);
+  const reviewedDiff = result.outputs.prompt.split('Everything between the fences below is the diff')[1];
+  assert.ok(!reviewedDiff.includes('web/generated/output.js'));
+  assert.ok(reviewedDiff.includes('src/add.js'));
+});
+
+test('a failed .gitattributes read is only a warning', async () => {
+  const api = fakeApi({ permission: 'write' });
+  api.getFileText = async () => { throw new Error('GitHub GET failed: 500'); };
+  const warnings = [];
+  const result = await prepare({ event: event(), api, warn: (m) => warnings.push(m) });
+
+  assert.equal(result.proceed, true);
+  assert.deepEqual(warnings, ['could not read .gitattributes for linguist-generated paths: GitHub GET failed: 500']);
+});
+
+test('nested dist folders are excluded; nested build folders are not', () => {
+  assert.equal(globToRegExp('**/dist/**').test('packages/web/dist/bundle.js'), true);
+  assert.ok(DEFAULT_EXCLUDES.includes('**/dist/**'));
+  const { excluded } = filterDiff(
+    'diff --git a/packages/web/dist/a.js b/packages/web/dist/a.js\n@@ -1 +1 @@\n-a\n+b\n' +
+      'diff --git a/tools/build/deploy.sh b/tools/build/deploy.sh\n@@ -1 +1 @@\n-a\n+b\n',
+    DEFAULT_EXCLUDES,
+  );
+  assert.deepEqual(excluded, ['packages/web/dist/a.js']);
+});
+
+test('no Excluded files section when nothing was excluded', () => {
+  assert.doesNotMatch(buildPrompt(promptArgs()), /# Excluded files/);
+});
