@@ -103,9 +103,12 @@ export function renderReport(results) {
       for (const bug of result.missed) {
         lines.push(`- ❌ **${bug.id}** — missed (${bug.description})`);
       }
-    } else {
-      lines.push(`Verdict: **${result.verdict}**, ${result.findingCount} finding(s).`);
+      lines.push('');
     }
+    // For every fixture, not just the clean one: a Rubric change that makes Reviews noisier, or
+    // drops a request_changes Verdict on a real bug, should show up here even when the planted
+    // bugs are still found.
+    lines.push(`Verdict: **${result.verdict}**, ${result.findingCount} finding(s).`);
     lines.push('');
   }
   return lines.join('\n').replace(/\n+$/, '\n');

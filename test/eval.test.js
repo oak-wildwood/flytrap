@@ -110,11 +110,15 @@ test('renders found and missed planted bugs per diff', () => {
       name: 'off-by-one',
       found: [{ bug: { id: 'off-by-one-loop-bound' }, finding: { file: 'src/paginate.js', line: 6, title: 'off by one' } }],
       missed: [],
+      verdict: 'request_changes',
+      findingCount: 3,
     },
     {
       name: 'injection',
       found: [],
       missed: [{ id: 'shell-command-injection', description: 'unsanitized filename' }],
+      verdict: 'approve',
+      findingCount: 0,
     },
   ];
 
@@ -126,11 +130,15 @@ Found 1/1 planted bugs.
 
 - ✅ **off-by-one-loop-bound** — found as \`src/paginate.js:6\` "off by one"
 
+Verdict: **request_changes**, 3 finding(s).
+
 ## injection
 
 Found 0/1 planted bugs.
 
 - ❌ **shell-command-injection** — missed (unsanitized filename)
+
+Verdict: **approve**, 0 finding(s).
 `);
 });
 
