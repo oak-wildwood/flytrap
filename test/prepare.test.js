@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { prepare, buildPrompt, MAX_DIFF_CHARS } from '../src/prepare.js';
+import { prepare, buildPrompt, closingIssueNumbers, conventionsPaths, MAX_DIFF_CHARS } from '../src/prepare.js';
 import { loadSchema } from '../src/schema.js';
 import { fakeApi, fixture, jsonFixture } from './helpers.js';
 
@@ -117,7 +117,12 @@ test('gives the Harness the rubric, the diff and the findings schema', async () 
   assert.ok(outputs.prompt.includes(fixture('pr.diff')));
   assert.match(outputs.prompt, /Pull request: #7/);
   const { $schema, $id, ...rest } = loadSchema();
-  assert.deepEqual(JSON.parse(outputs.json_schema), rest);
+  // This pull request has no Spec (its body has no closing issue), so spec is dropped from the
+  // category enum the Harness is given.
+  const expected = JSON.parse(JSON.stringify(rest));
+  expected.properties.findings.items.properties.category.enum =
+    expected.properties.findings.items.properties.category.enum.filter((c) => c !== 'spec');
+  assert.deepEqual(JSON.parse(outputs.json_schema), expected);
   // The Claude CLI rejects the draft 2020-12 $schema URI (first live run, #14).
   assert.ok(!('$schema' in JSON.parse(outputs.json_schema)));
   // action.yml passes the schema inside single quotes in claude_args.
@@ -143,6 +148,132 @@ test('a failure after the 👀 still carries the ids the swap step needs', async
 
   await assert.rejects(prepare({ event: event(), api }), (err) => {
     assert.match(err.message, /502/);
+    assert.deepEqual(err.outputs, { comment_id: 1001, reaction_id: 42 });
+    return true;
+  });
+});
+
+// --- Spec: the pull request's closing issues, all of them, and nothing else ---
+
+test('closingIssueNumbers finds every closing keyword, in any case, and dedupes', () => {
+  assert.deepEqual(closingIssueNumbers(undefined), []);
+  assert.deepEqual(closingIssueNumbers('no issue mentioned here'), []);
+  assert.deepEqual(closingIssueNumbers('Closes #5'), [5]);
+  assert.deepEqual(closingIssueNumbers('closed: #7'), [7]);
+  assert.deepEqual(closingIssueNumbers('Fixes #5\n\nCloses #5 again'), [5]);
+  assert.deepEqual(closingIssueNumbers('Closes #5\n\nFixes #6'), [5, 6]);
+});
+
+test('a mentioned-only issue (no closing keyword) is not the Spec', () => {
+  assert.deepEqual(closingIssueNumbers('See #5 for background'), []);
+  assert.deepEqual(closingIssueNumbers('Related to #5'), []);
+});
+
+test('has no Spec when the pull request closes no issue', async () => {
+  const api = fakeApi({ permission: 'write' }); // pull-same-repo.json has no body
+  const { outputs } = await prepare({ event: event(), api });
+
+  assert.deepEqual(api.calls.filter(([name]) => name === 'getIssue'), []);
+  assert.match(outputs.prompt, /This pull request has no Spec/);
+  assert.doesNotMatch(outputs.prompt, /^## #\d+:/m);
+  const category = JSON.parse(outputs.json_schema).properties.findings.items.properties.category;
+  assert.ok(!category.enum.includes('spec'), 'spec is not a category when there is no Spec');
+});
+
+test('the Spec is the one issue the pull request closes', async () => {
+  const api = fakeApi({
+    permission: 'write',
+    issues: { 5: { number: 5, title: 'Add CSV export', body: 'Users need CSV export.' } },
+  });
+  api.getPull = async () => ({ ...jsonFixture('pull-same-repo.json'), body: 'Closes #5' });
+  const { outputs } = await prepare({ event: event(), api });
+
+  assert.deepEqual(api.calls.filter(([name]) => name === 'getIssue'), [['getIssue', 5]]);
+  assert.match(outputs.prompt, /## #5: Add CSV export/);
+  assert.match(outputs.prompt, /Users need CSV export\./);
+  const category = JSON.parse(outputs.json_schema).properties.findings.items.properties.category;
+  assert.ok(category.enum.includes('spec'), 'spec is a category once there is a Spec');
+});
+
+test('the Spec is both issues when the pull request closes two', async () => {
+  const api = fakeApi({
+    permission: 'write',
+    issues: {
+      5: { number: 5, title: 'Add CSV export', body: 'Users need CSV export.' },
+      6: { number: 6, title: 'Add JSON export', body: 'Users need JSON export.' },
+    },
+  });
+  api.getPull = async () => ({ ...jsonFixture('pull-same-repo.json'), body: 'Closes #5\n\nFixes #6' });
+  const { outputs } = await prepare({ event: event(), api });
+
+  assert.deepEqual(api.calls.filter(([name]) => name === 'getIssue'), [['getIssue', 5], ['getIssue', 6]]);
+  assert.match(outputs.prompt, /## #5: Add CSV export/);
+  assert.match(outputs.prompt, /## #6: Add JSON export/);
+});
+
+test('an issue that is only mentioned, not closed, is not the Spec', async () => {
+  const api = fakeApi({ permission: 'write' });
+  const body = 'See #5 for background, fixed in a follow-up';
+  api.getPull = async () => ({ ...jsonFixture('pull-same-repo.json'), body });
+  const { outputs } = await prepare({ event: event(), api });
+
+  assert.deepEqual(api.calls.filter(([name]) => name === 'getIssue'), []);
+  assert.match(outputs.prompt, /This pull request has no Spec/);
+});
+
+// --- Conventions: root AGENTS.md/CLAUDE.md, plus nested ones in touched directories ---
+
+test('conventionsPaths lists root plus nested files for every directory between a changed file and the root', () => {
+  const diff = [
+    'diff --git a/packages/api/src/handlers/foo.js b/packages/api/src/handlers/foo.js',
+    '--- a/packages/api/src/handlers/foo.js',
+    '+++ b/packages/api/src/handlers/foo.js',
+    '@@ -1 +1 @@',
+    '-old',
+    '+new',
+  ].join('\n');
+  const paths = conventionsPaths(diff);
+
+  assert.deepEqual(new Set(paths), new Set([
+    'AGENTS.md', 'CLAUDE.md',
+    'packages/AGENTS.md', 'packages/CLAUDE.md',
+    'packages/api/AGENTS.md', 'packages/api/CLAUDE.md',
+    'packages/api/src/AGENTS.md', 'packages/api/src/CLAUDE.md',
+    'packages/api/src/handlers/AGENTS.md', 'packages/api/src/handlers/CLAUDE.md',
+  ]));
+  // A directory the diff never touches gets no candidates.
+  assert.ok(!paths.some((p) => p.startsWith('packages/web')));
+});
+
+test('conventionsPaths ignores deleted files', () => {
+  const diff = ['diff --git a/old/file.js b/old/file.js', '--- a/old/file.js', '+++ /dev/null'].join('\n');
+  assert.deepEqual(conventionsPaths(diff), ['AGENTS.md', 'CLAUDE.md']);
+});
+
+test('the prompt lists Conventions files for a touched directory but not an untouched one', () => {
+  const pull = jsonFixture('pull-same-repo.json');
+  const diff = [
+    'diff --git a/packages/api/src/handler.js b/packages/api/src/handler.js',
+    '--- a/packages/api/src/handler.js',
+    '+++ b/packages/api/src/handler.js',
+    '@@ -1 +1 @@',
+    '-old',
+    '+new',
+  ].join('\n');
+  const prompt = buildPrompt({ repository: 'o/r', pull, diff });
+
+  assert.match(prompt, /^- AGENTS\.md$/m);
+  assert.match(prompt, /^- packages\/api\/AGENTS\.md$/m);
+  assert.match(prompt, /^- packages\/api\/src\/AGENTS\.md$/m);
+  assert.doesNotMatch(prompt, /packages\/web/);
+});
+
+test('a failed Spec lookup after the 👀 still carries the ids the swap step needs', async () => {
+  const api = fakeApi({ permission: 'write' });
+  api.getPull = async () => ({ ...jsonFixture('pull-same-repo.json'), body: 'Closes #5' });
+  api.getIssue = async () => { throw new Error('GitHub GET failed: 404'); };
+
+  await assert.rejects(prepare({ event: event(), api }), (err) => {
     assert.deepEqual(err.outputs, { comment_id: 1001, reaction_id: 42 });
     return true;
   });
