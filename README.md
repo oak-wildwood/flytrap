@@ -82,8 +82,8 @@ each with its expected Findings written down. Run **Flytrap Rubric eval** by han
 tab ([`.github/workflows/flytrap-eval.yml`](.github/workflows/flytrap-eval.yml)) to put the set
 through the real Claude Adapter; the report shows which planted bugs each diff's Review found or
 missed, plus the clean diff's Verdict and Finding count. It costs usage on every run, so it never
-runs on a pull request. To run it in your own repo, copy
-[`examples/flytrap-eval.yml`](examples/flytrap-eval.yml) into `.github/workflows/`.
+runs on a pull request. It uses this repo's own fixtures and CLI, so it's for flytrap and its forks,
+not something to copy into another repo.
 
 ## Developing
 

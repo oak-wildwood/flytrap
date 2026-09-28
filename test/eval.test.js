@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import {
   listFixtures, loadFixture, buildEvalPrompt, prepareFixture, scoreFixture, renderReport, buildReport,
 } from '../src/eval.js';
-import { schemaForHarness } from '../src/prepare.js';
+import { loadSkillText, schemaForHarness } from '../src/prepare.js';
 
 test('lists the fixture set', () => {
   assert.deepEqual(listFixtures(), ['clean', 'injection', 'missing-null-check', 'off-by-one']);
@@ -23,12 +23,16 @@ test('the clean fixture has no planted bugs', () => {
   assert.deepEqual(loadFixture('clean').expected.planted_bugs, []);
 });
 
-test('builds a prompt with the Rubric, the fixture name and its diff, but no PR framing', () => {
+test('builds a prompt with the Rubric and the diff, but no fixture name and no PR framing', () => {
   const fixture = loadFixture('injection');
   const prompt = buildEvalPrompt(fixture);
 
   assert.match(prompt, /# Flytrap Review/);
-  assert.match(prompt, /fixture "injection"/);
+  assert.match(prompt, /This is a Rubric eval fixture, not a real pull request/);
+  // The name would tell the model what to find. (The Rubric itself lists "off-by-one" and
+  // "injection" as things to check for, the same as in real Reviews, so only the framing is checked.)
+  const framing = prompt.slice(loadSkillText().length);
+  for (const name of listFixtures()) assert.ok(!framing.includes(name), `the prompt must not name "${name}"`);
   assert.ok(prompt.includes(fixture.diff));
   assert.doesNotMatch(prompt, /Pull request:/);
   assert.doesNotMatch(prompt, /^---\nname:/, 'skill frontmatter is stripped');
@@ -41,7 +45,7 @@ test('fences the diff so backticks in it cannot close the fence', () => {
 
 test('prepares a fixture with the same schema a real Review with no Spec uses', () => {
   const { prompt, json_schema } = prepareFixture('clean');
-  assert.match(prompt, /fixture "clean"/);
+  assert.match(prompt, /This is a Rubric eval fixture/);
   const schema = JSON.parse(json_schema);
   assert.deepEqual(schema, schemaForHarness(false));
   // A fixture closes no issue, so there's nothing to check a spec Finding against.

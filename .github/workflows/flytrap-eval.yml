@@ -2,7 +2,7 @@ name: Flytrap Rubric eval
 
 # Runs the Rubric eval set (test/evals/fixtures) through the real Claude Adapter and reports which
 # planted bugs each fixture's Review found or missed, plus the clean fixture's Verdict and Finding
-# count. flytrap runs this as .github/workflows/flytrap-eval.yml; copy it there in your own repo.
+# count. It uses this repo's fixtures and CLI, so it's for flytrap and its forks only.
 #
 # Manual only: it spends usage on every run, so it stays on workflow_dispatch and never runs on a
 # pull request. Trigger it from the Actions tab after a Rubric change to see whether Reviews got
@@ -51,15 +51,14 @@ jobs:
           FIXTURE: ${{ matrix.fixture }}
         run: node bin/flytrap.js eval-prepare --fixture "$FIXTURE"
 
-      # The prompt is built, so the fixtures and their tests are no longer needed. Remove them
-      # before the model runs: *.expected.json names each planted bug's file and lines, and the
-      # model has Read, Glob and Grep over the checkout, so one Glob would leak the answer.
-      - name: Hide the expected answers from the model
-        run: rm -rf test
+      # The prompt is built, and the model judges the fixture from its diff alone, so it needs no
+      # files. Remove the checkout (all but .git) before it runs: the model has Read, Glob and Grep,
+      # and *.expected.json, the eval tests and the README all name the planted bugs.
+      - name: Hide the answers from the model
+        run: find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 
       # The same Adapter call as the "Review with Claude" step in action.yml, run against a fixture
-      # diff instead of a pull request's. Keep the two in step: if they drift, this stops
-      # measuring what real Reviews run.
+      # diff instead of a pull request's. test/eval-workflow.test.js fails if the two drift.
       - name: Review with Claude
         id: review
         uses: anthropics/claude-code-action@v1
