@@ -1,6 +1,6 @@
-# Nuthatch
+# Flytrap
 
-Nuthatch reviews a pull request and reports what it finds on the PR, on demand or as a check.
+Flytrap reviews a pull request and reports what it finds on the PR, on demand or as a check.
 Its review rubric and output contract are meant to outlive any one AI harness.
 
 ## Language
@@ -8,7 +8,7 @@ Its review rubric and output contract are meant to outlive any one AI harness.
 ### The review
 
 **Review**:
-One pass of Nuthatch over one pull request, producing Findings and a Verdict.
+One pass of Flytrap over one pull request, producing Findings and a Verdict.
 _Avoid_: Report, run (a run is the CI job that carries a Review)
 
 **Rubric**:
@@ -52,6 +52,6 @@ The agent runtime that runs a Review, such as Claude Code or Codex.
 _Avoid_: Model, provider, engine
 
 **Adapter**:
-The only Harness-specific part of Nuthatch: it gets a Harness to run a Review and hand back
+The only Harness-specific part of Flytrap: it gets a Harness to run a Review and hand back
 Findings.
 _Avoid_: Driver, plugin

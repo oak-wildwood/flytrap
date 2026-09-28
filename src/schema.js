@@ -23,7 +23,7 @@ export function loadSchema() {
   return JSON.parse(readFileSync(SCHEMA_URL, 'utf8'));
 }
 
-// A validator for the subset of JSON Schema the findings schema uses. Nuthatch has no
+// A validator for the subset of JSON Schema the findings schema uses. Flytrap has no
 // dependencies, and the model's output has already been checked by the Harness, so this is a
 // second line of defense rather than a general-purpose implementation. If the schema starts
 // using a keyword not handled here, validate() throws rather than silently passing.

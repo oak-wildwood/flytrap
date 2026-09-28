@@ -4,7 +4,7 @@
 // Findings. The text comes from the model, which read PR-controlled input, so it is treated as
 // untrusted when rendered.
 
-export const MARKER = '<!-- nuthatch:review -->';
+export const MARKER = '<!-- flytrap:review -->';
 
 const VERDICT = {
   approve: '✅ Approve',
@@ -29,7 +29,7 @@ const CATEGORY = {
 export function renderReview(review) {
   const lines = [
     MARKER,
-    `## Nuthatch: ${VERDICT[review.verdict]}`,
+    `## Flytrap: ${VERDICT[review.verdict]}`,
     '',
     neutralise(review.summary.trim()),
     '',

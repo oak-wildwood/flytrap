@@ -62,7 +62,7 @@ Instructions for AI coding agents working in this repository. Humans should read
 ### Spelling
 
 Write American English everywhere: code, comments, docs, commit messages, PR text, and the
-Reviews Nuthatch posts. That means behavior, authorization, optimize, judgment and defense, not
+Reviews Flytrap posts. That means behavior, authorization, optimize, judgment and defense, not
 behaviour, authorisation, optimise, judgement or defence.
 
 <!--

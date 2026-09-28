@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/oak-wildwood/nuthatch/schema/findings.schema.json",
-  "title": "Nuthatch Review",
+  "$id": "https://github.com/oak-wildwood/flytrap/schema/findings.schema.json",
+  "title": "Flytrap Review",
   "description": "The Findings and Verdict of one Review. This is the contract between a Harness and the posting code (ADR 0001).",
   "type": "object",
   "additionalProperties": false,

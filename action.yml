@@ -1,5 +1,5 @@
-name: Nuthatch
-description: Review a pull request when a collaborator with write access comments @nuthatch on it.
+name: Flytrap
+description: Review a pull request when a collaborator with write access comments @flytrap on it.
 branding:
   icon: eye
   color: orange
@@ -16,7 +16,7 @@ inputs:
     required: false
     default: opus
   github_token:
-    description: Token Nuthatch's own steps use to read the PR and post the Review.
+    description: Token Flytrap's own steps use to read the PR and post the Review.
     required: false
     default: ${{ github.token }}
 
@@ -27,21 +27,21 @@ runs:
       with:
         node-version: 22
 
-    # First, before any checkout or model call (ADR 0004). Nuthatch runs from the action's own
+    # First, before any checkout or model call (ADR 0004). Flytrap runs from the action's own
     # copy ($GITHUB_ACTION_PATH), never from the pull request's code.
     - name: Check the commenter and gather the diff
       id: prepare
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
-      run: node "$GITHUB_ACTION_PATH/bin/nuthatch.js" prepare
+      run: node "$GITHUB_ACTION_PATH/bin/flytrap.js" prepare
 
     - name: Say why there is no Review
       if: steps.prepare.outputs.proceed != 'true'
       shell: bash
       env:
         REASON: ${{ steps.prepare.outputs.reason }}
-      run: printf '::notice title=Nuthatch skipped::%s\n' "$REASON"
+      run: printf '::notice title=Flytrap skipped::%s\n' "$REASON"
 
     - name: Check exactly one credential is set
       if: steps.prepare.outputs.proceed == 'true'
@@ -88,6 +88,6 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
-        NUTHATCH_FINDINGS: ${{ steps.review.outputs.structured_output }}
+        FLYTRAP_FINDINGS: ${{ steps.review.outputs.structured_output }}
         PR_NUMBER: ${{ steps.prepare.outputs.pr_number }}
-      run: node "$GITHUB_ACTION_PATH/bin/nuthatch.js" post-review --pr "$PR_NUMBER"
+      run: node "$GITHUB_ACTION_PATH/bin/flytrap.js" post-review --pr "$PR_NUMBER"

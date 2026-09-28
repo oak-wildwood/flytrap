@@ -1,4 +1,4 @@
-// The handful of GitHub REST calls Nuthatch makes. Commands take this as a parameter so tests
+// The handful of GitHub REST calls Flytrap makes. Commands take this as a parameter so tests
 // can pass a fake in its place.
 export function githubApi({ token, repository, fetch = globalThis.fetch, baseUrl = 'https://api.github.com' }) {
   if (!token) throw new Error('GITHUB_TOKEN is not set');
@@ -11,7 +11,7 @@ export function githubApi({ token, repository, fetch = globalThis.fetch, baseUrl
         accept,
         authorization: `Bearer ${token}`,
         'x-github-api-version': '2022-11-28',
-        'user-agent': 'nuthatch',
+        'user-agent': 'flytrap',
         ...(body ? { 'content-type': 'application/json' } : {}),
       },
       body: body ? JSON.stringify(body) : undefined,

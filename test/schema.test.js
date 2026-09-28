@@ -36,7 +36,7 @@ test('step outputs use a delimiter the value cannot forge', () => {
   const outputs = {};
   while (lines.length > 1) {
     const [name, delimiter] = lines.shift().split('<<');
-    assert.match(delimiter, /^NUTHATCH_[0-9a-f]{32}$/);
+    assert.match(delimiter, /^FLYTRAP_[0-9a-f]{32}$/);
     const end = lines.indexOf(delimiter);
     outputs[name] = lines.splice(0, end + 1).slice(0, -1).join('\n');
   }

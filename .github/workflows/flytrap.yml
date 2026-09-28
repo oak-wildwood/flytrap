@@ -1,6 +1,6 @@
-name: Nuthatch
+name: Flytrap
 
-# Comment @nuthatch on a pull request to get a Review.
+# Comment @flytrap on a pull request to get a Review.
 #
 # Uses the published action, even in this repo: `uses: ./` would run the action from the
 # workspace, and on a PR that is the PR's own code with the repo's secrets in reach.
@@ -18,10 +18,10 @@ permissions:
 
 jobs:
   review:
-    # A cheap pre-filter; the real trigger and permission checks are in `nuthatch prepare`.
-    if: github.event.issue.pull_request && contains(github.event.comment.body, '@nuthatch')
+    # A cheap pre-filter; the real trigger and permission checks are in `flytrap prepare`.
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '@flytrap')
     runs-on: ubuntu-latest
     steps:
-      - uses: oak-wildwood/nuthatch@main
+      - uses: oak-wildwood/flytrap@main
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

@@ -1,6 +1,6 @@
 {
   "number": 7,
   "state": "open",
-  "head": { "sha": "2222222222222222222222222222222222222222", "ref": "main", "repo": { "full_name": "stranger/nuthatch" } },
-  "base": { "sha": "0000000000000000000000000000000000000000", "ref": "main", "repo": { "full_name": "oak-wildwood/nuthatch" } }
+  "head": { "sha": "2222222222222222222222222222222222222222", "ref": "main", "repo": { "full_name": "stranger/flytrap" } },
+  "base": { "sha": "0000000000000000000000000000000000000000", "ref": "main", "repo": { "full_name": "oak-wildwood/flytrap" } }
 }

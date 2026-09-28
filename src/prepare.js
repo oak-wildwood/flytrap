@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { loadSchema } from './schema.js';
 
-const SKILL_URL = new URL('../skills/nuthatch-review/SKILL.md', import.meta.url);
+const SKILL_URL = new URL('../skills/flytrap-review/SKILL.md', import.meta.url);
 
-export const TRIGGER = /(^|\s)@nuthatch\b/i;
+export const TRIGGER = /(^|\s)@flytrap\b/i;
 export const ALLOWED_PERMISSIONS = new Set(['admin', 'maintain', 'write']);
 
 // GitHub step outputs are capped at 1 MB per job, and a diff this large wouldn't get a useful
@@ -27,7 +27,7 @@ export async function prepare({ event, api, warn = (message) => console.error(`:
     return stop('the event is not a comment on a pull request');
   }
   if (!TRIGGER.test(comment.body ?? '')) {
-    return stop('the comment does not mention @nuthatch');
+    return stop('the comment does not mention @flytrap');
   }
 
   const login = comment.user?.login;
@@ -49,7 +49,7 @@ export async function prepare({ event, api, warn = (message) => console.error(`:
   if (pull.state !== 'open') return stop(`pull request #${number} is ${pull.state}`);
 
   // 👀 on the comment, as @claude does, so the commenter knows a Review is coming before the
-  // checkout and model call. Only now, so a comment Nuthatch ignores gets no sign that anything
+  // checkout and model call. Only now, so a comment Flytrap ignores gets no sign that anything
   // ran. The reaction is a courtesy: failing to add it never stops the Review.
   let reactionId = '';
   try {
