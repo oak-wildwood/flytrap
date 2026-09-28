@@ -23,7 +23,7 @@ jobs:
     if: github.event.issue.pull_request && contains(github.event.comment.body, '@flytrap')
     runs-on: ubuntu-latest
     steps:
-      - uses: oak-wildwood/flytrap@main
+      - uses: oak-wildwood/flytrap@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
@@ -32,6 +32,14 @@ A collaborator with write, maintain or admin permission then comments `@flytrap`
 and gets back one comment-only review: a Verdict and summary, then an inline comment on each
 Finding, with a one-click suggested change where it has one. See
 [`examples/flytrap.yml`](examples/flytrap.yml) for the same file with comments.
+
+### Versions
+
+`@v1` follows the latest 1.x release, so you get fixes and new features without breaking changes.
+To pin one exact release instead, use its tag, for example `oak-wildwood/flytrap@v1.0.0`, or a
+commit SHA. The action, the Rubric and the findings schema are versioned together, so any of these
+gives you a consistent set. [Releases](https://github.com/oak-wildwood/flytrap/releases) lists
+what changed.
 
 ### Inputs
 
@@ -84,6 +92,13 @@ through the real Claude Adapter; the report shows which planted bugs each diff's
 missed, plus the clean diff's Verdict and Finding count. It costs usage on every run, so it never
 runs on a pull request. It uses this repo's own fixtures and CLI, so it's for flytrap and its forks,
 not something to copy into another repo.
+
+## Releasing
+
+Bump `version` in `package.json` on a PR and merge it, then run `scripts/release.sh X.Y.Z` from an
+up-to-date `main`. It runs the tests, creates the immutable `vX.Y.Z` tag, moves the major tag
+(`v1`) to it, and publishes a GitHub release. This repo's own review workflow stays on `@main`, so
+Flytrap reviews its own PRs with the latest merged code.
 
 ## Developing
 
