@@ -23,7 +23,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v7
       with:
         node-version: 22
 
@@ -61,7 +61,7 @@ runs:
     # no install, no build, no scripts, and no credentials left in the checkout.
     - name: Check out the pull request head
       if: steps.prepare.outputs.proceed == 'true'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         ref: ${{ steps.prepare.outputs.checkout_ref }}
         persist-credentials: false
