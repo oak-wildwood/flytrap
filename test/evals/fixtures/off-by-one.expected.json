@@ -1,0 +1,12 @@
+{
+  "description": "page() loops with `i <= end` instead of `i < end`, so it returns one item past the requested page size.",
+  "planted_bugs": [
+    {
+      "id": "off-by-one-loop-bound",
+      "file": "src/paginate.js",
+      "line": 6,
+      "end_line": 8,
+      "description": "The loop condition `i <= end` runs one iteration too many, so page() returns pageSize + 1 items instead of pageSize."
+    }
+  ]
+}

@@ -74,6 +74,16 @@ characters (default 100000) gets a short "too large to review" comment instead o
 
 The model never writes to GitHub; see [`docs/adr`](docs/adr) for why.
 
+## Evaluating the Rubric
+
+[`test/evals/fixtures`](test/evals/fixtures) holds a small, fixed eval set: three diffs with a
+planted bug each (an off-by-one, a command injection, a missing null check) and one clean diff,
+each with its expected Findings written down. Copy
+[`examples/flytrap-eval.yml`](examples/flytrap-eval.yml) into `.github/workflows/` and trigger it
+by hand from the Actions tab to run the set through the real Claude Adapter; the report shows which
+planted bugs each diff's Review found or missed, plus the clean diff's Verdict and Finding count.
+It costs usage on every run, so it never runs on a pull request.
+
 ## Developing
 
 Plain Node 20+, no dependencies. `npm test` runs the `node:test` suite.

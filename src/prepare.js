@@ -242,7 +242,8 @@ function changedPaths(diff) {
 
 // The Claude CLI's validator rejects the draft 2020-12 `$schema` URI, and the schema uses no
 // keyword that needs it. The file keeps `$schema` and `$id` for editors and our own validator.
-function schemaForHarness(hasSpec) {
+// Exported so the eval Harness gets the same schema the real Review does (src/eval.js).
+export function schemaForHarness(hasSpec = false) {
   const { $schema, $id, ...schema } = loadSchema();
   if (!hasSpec) {
     const category = schema.properties.findings.items.properties.category;
@@ -346,8 +347,20 @@ export function globToRegExp(pattern) {
   return new RegExp(`^${re}$`);
 }
 
+// Exported so the eval fixtures build their prompt from the same Rubric text (src/eval.js).
+export function loadSkillText() {
+  return readFileSync(SKILL_URL, 'utf8').replace(/^---\n[\s\S]*?\n---\n/, '').trim();
+}
+
+// A fence longer than any backtick run in any of `texts`, so none of them can close it early and
+// pass itself off as part of the prompt. Exported so eval prompts fence the same way (src/eval.js).
+export function fenceFor(...texts) {
+  const runs = texts.flatMap((text) => text.match(/`+/g) ?? []);
+  return '`'.repeat(Math.max(2, ...runs.map((run) => run.length)) + 1);
+}
+
 export function buildPrompt({ repository, pull, diff, issues = [], specGaps = { unavailable: [], omitted: 0 }, excluded = [] }) {
-  const skill = readFileSync(SKILL_URL, 'utf8').replace(/^---\n[\s\S]*?\n---\n/, '').trim();
+  const skill = loadSkillText();
   let shown = diff;
   let note = '';
   if (diff.length > MAX_DIFF_CHARS) {
@@ -378,10 +391,8 @@ export function buildPrompt({ repository, pull, diff, issues = [], specGaps = { 
     ? `\nThe list is cut to the first ${MAX_EXCLUDED_PATHS} of ${excluded.length} paths.\n`
     : '';
 
-  // Pick a fence longer than any backtick run in the diff, the path lists or the issue text, so
-  // none of it can close its fence early and pass itself off as part of the prompt.
-  const runs = [shown, conventions, excludedList, ...specTexts.map(({ text }) => text)].flatMap((text) => text.match(/`+/g) ?? []);
-  const fence = '`'.repeat(Math.max(2, ...runs.map((run) => run.length)) + 1);
+  // One fence for the diff, the path lists and the issue text: all of it is someone else's words.
+  const fence = fenceFor(shown, conventions, excludedList, ...specTexts.map(({ text }) => text));
 
   const gaps = [];
   if (specGaps.unavailable.length) {

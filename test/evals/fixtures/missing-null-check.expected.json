@@ -1,0 +1,12 @@
+{
+  "description": "displayName() reads user.nickname without checking user exists, even though the comment above it says user may be missing.",
+  "planted_bugs": [
+    {
+      "id": "missing-null-check",
+      "file": "src/greet.js",
+      "line": 2,
+      "end_line": 4,
+      "description": "user can be null or undefined per the comment above it, but displayName() reads user.nickname directly and throws instead of handling a missing user."
+    }
+  ]
+}
