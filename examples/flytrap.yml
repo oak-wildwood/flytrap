@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: read
+  issues: read # the Spec: the issues a pull request closes
   pull-requests: write
 
 jobs:
