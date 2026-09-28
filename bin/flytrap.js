@@ -23,7 +23,14 @@ const USAGE = `Usage:
 const commands = {
   async prepare() {
     const event = JSON.parse(readFileSync(requireEnv('GITHUB_EVENT_PATH'), 'utf8'));
-    const result = await prepare({ event, api: apiFromEnv() });
+    let result;
+    try {
+      result = await prepare({ event, api: apiFromEnv() });
+    } catch (err) {
+      // A failure after the 👀 went on still hands the swap step its ids (src/prepare.js).
+      if (err.outputs) writeOutputs(err.outputs);
+      throw err;
+    }
     writeOutputs({ proceed: result.proceed, reason: result.reason, ...result.outputs });
     const line = `${result.proceed ? 'Reviewing' : 'Not reviewing'}: ${result.reason}`;
     console.error(line);

@@ -83,6 +83,23 @@ test('fails on a permission denial, naming the tool and its input', () => {
   );
 });
 
+test('truncates a large denied input so the failure reason stays readable', () => {
+  const content = 'x'.repeat(10_000);
+  const executionRaw = JSON.stringify([
+    { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Write', input: { file_path: 'a.js', content } }] } },
+    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', is_error: true, content: 'Claude requested permissions to use Write.' }] } },
+  ]);
+  assert.throws(
+    () => planReview({ raw: fixture('findings-approve.json'), executionRaw, prNumber: 7 }),
+    (err) => {
+      assert.match(err.message, /denied permission to use Write with input \{"file_path":"a\.js"/);
+      assert.match(err.message, /… \(\d+ chars\)$/);
+      assert.ok(err.message.length < 500);
+      return true;
+    },
+  );
+});
+
 test('checks for a denial even when there is no findings JSON at all', () => {
   assert.throws(
     () => planReview({ raw: '', executionRaw: denialExecution(), prNumber: 7 }),

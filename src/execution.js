@@ -5,6 +5,12 @@
 // in, since headless mode has no one to ask. A run can still produce well-formed Findings after a
 // denial — the model just works around the missing tool — so this has to be checked on its own,
 // not inferred from bad output.
+//
+// Errors from the allowed tools are never denials, even when they mention "permission": a Read
+// of an unreadable file fails with `EACCES: permission denied`, and that's an ordinary tool
+// failure the model can work around, not a sign the run was blocked.
+export const ALLOWED_TOOLS = new Set(['Read', 'Glob', 'Grep']);
+
 export function findDenial(raw) {
   if (!raw || !raw.trim()) return null;
   let entries;
@@ -23,7 +29,9 @@ export function findDenial(raw) {
     if (block?.type !== 'tool_result' || !block.is_error) continue;
     const message = contentText(block.content);
     if (!/permission/i.test(message)) continue;
-    return { ...(toolUses.get(block.tool_use_id) ?? { tool: 'unknown', input: null }), message };
+    const use = toolUses.get(block.tool_use_id) ?? { tool: 'unknown', input: null };
+    if (ALLOWED_TOOLS.has(use.tool)) continue;
+    return { ...use, message };
   }
   return null;
 }

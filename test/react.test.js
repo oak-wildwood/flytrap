@@ -13,7 +13,7 @@ test('swaps 👀 for 🚀 on success', async () => {
   ]);
 });
 
-for (const outcome of ['failure', 'cancelled', undefined]) {
+for (const outcome of ['failure', 'cancelled', 'skipped', undefined]) {
   test(`swaps 👀 for 😕 on ${outcome}`, async () => {
     const api = fakeApi();
     await swapReaction({ commentId: 1001, reactionId: '42', outcome, api });

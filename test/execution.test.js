@@ -44,6 +44,25 @@ test('ignores a tool_result error that is not a permission denial', () => {
   assert.equal(findDenial(raw), null);
 });
 
+test('ignores an EACCES error from an allowed tool', () => {
+  const raw = JSON.stringify([
+    {
+      type: 'assistant',
+      message: { content: [{ type: 'tool_use', id: 't1', name: 'Read', input: { file_path: 'secret.pem' } }] },
+    },
+    {
+      type: 'user',
+      message: {
+        content: [
+          { type: 'tool_result', tool_use_id: 't1', is_error: true, content: "EACCES: permission denied, open 'secret.pem'" },
+        ],
+      },
+    },
+  ]);
+
+  assert.equal(findDenial(raw), null);
+});
+
 test('reports the denial even without a matching tool_use', () => {
   const raw = JSON.stringify([
     {

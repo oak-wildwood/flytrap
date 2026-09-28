@@ -136,3 +136,14 @@ test('cuts an oversized diff and says so', () => {
   assert.match(prompt, /cut to the first/);
   assert.ok(!prompt.includes('x'.repeat(MAX_DIFF_CHARS + 1)));
 });
+
+test('a failure after the 👀 still carries the ids the swap step needs', async () => {
+  const api = fakeApi({ permission: 'write' });
+  api.getDiff = async () => { throw new Error('GitHub GET failed: 502'); };
+
+  await assert.rejects(prepare({ event: event(), api }), (err) => {
+    assert.match(err.message, /502/);
+    assert.deepEqual(err.outputs, { comment_id: 1001, reaction_id: 42 });
+    return true;
+  });
+});

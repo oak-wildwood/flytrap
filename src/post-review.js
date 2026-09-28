@@ -36,7 +36,7 @@ export function planReview({ raw, executionRaw, prNumber }) {
   const denial = findDenial(executionRaw);
   if (denial) {
     throw new Error(
-      `the Harness's execution denied permission to use ${denial.tool} with input ${JSON.stringify(denial.input)}`,
+      `the Harness's execution denied permission to use ${denial.tool} with input ${truncate(JSON.stringify(denial.input))}`,
     );
   }
   const review = parseFindings(raw);
@@ -58,4 +58,10 @@ export async function postReview({ raw, executionRaw, prNumber, api }) {
     await api.createComment(prNumber, action.body);
   }
   return plan;
+}
+
+// A denied Write or Edit carries a whole file as its input; keep the failure reason readable.
+const MAX_INPUT_CHARS = 300;
+function truncate(text = 'null') {
+  return text.length > MAX_INPUT_CHARS ? `${text.slice(0, MAX_INPUT_CHARS)}… (${text.length} chars)` : text;
 }
