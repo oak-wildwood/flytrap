@@ -20,7 +20,7 @@ export function githubApi({ token, repository, fetch = globalThis.fetch, baseUrl
       throw new Error(`GitHub ${method} ${path} failed: ${res.status} ${await res.text()}`);
     }
     if (res.status === 204) return null; // DELETE endpoints answer with no body.
-    return accept.endsWith('diff') ? res.text() : res.json();
+    return accept.endsWith('diff') || accept.endsWith('raw') ? res.text() : res.json();
   }
 
   return {
@@ -35,6 +35,17 @@ export function githubApi({ token, repository, fetch = globalThis.fetch, baseUrl
     getDiff(number) {
       return request('GET', `/pulls/${number}`, { accept: 'application/vnd.github.diff' });
     },
+    // A file's text at a commit, or null when it doesn't exist there.
+    async getFileText(path, ref) {
+      try {
+        return await request('GET', `/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${ref}`, {
+          accept: 'application/vnd.github.raw',
+        });
+      } catch (err) {
+        if (/ failed: 404\b/.test(err.message)) return null;
+        throw err;
+      }
+    },
     // For the Spec: the title and body of an issue this pull request closes.
     getIssue(number) {
       return request('GET', `/issues/${number}`);
@@ -45,6 +56,10 @@ export function githubApi({ token, repository, fetch = globalThis.fetch, baseUrl
     },
     deleteReaction(commentId, reactionId) {
       return request('DELETE', `/issues/comments/${commentId}/reactions/${reactionId}`);
+    },
+    // Only for the "too large to review" notice; Reviews go through createReview.
+    createComment(number, body) {
+      return request('POST', `/issues/${number}/comments`, { body: { body } });
     },
     // `review` is { commit_id?, event, body, comments: [{ path, line, side, start_line?, ... }] }.
     createReview(number, review) {

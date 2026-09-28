@@ -41,6 +41,8 @@ Finding, with a one-click suggested change where it has one. See
 | `anthropic_api_key` | One of this or `claude_code_oauth_token` | — | Anthropic API key for the Claude Adapter |
 | `model` | No | `opus` | Model the Claude Adapter runs |
 | `github_token` | No | `${{ github.token }}` | Token Flytrap's own steps use to read the PR and post the Review |
+| `exclude` | No | — | Extra glob patterns, one per line, dropped from the diff on top of the defaults |
+| `max_diff_size` | No | `100000` | Characters of diff, after excludes, over which Flytrap posts a "too large" comment instead of reviewing |
 
 Give exactly one of `claude_code_oauth_token` and `anthropic_api_key`. Setting neither or both
 fails the job with a clear error before any model call.
@@ -53,6 +55,12 @@ model call. This holds for fork pull requests too, where the run has the base re
 secrets: the PR's head commit is checked out by SHA through the base repository, so a Review
 runs without needing access to the fork, and nothing in the checkout is ever executed — the model
 can only read files, with `Read`, `Glob` and `Grep`.
+
+Lockfiles, build output, minified files, other generated paths and anything your default branch's
+`.gitattributes` marks `linguist-generated` are dropped from the diff before review; the `exclude`
+input adds your own patterns on top. Excluded files are still listed for the model, which reviews
+any that look hand-written. A diff still over `max_diff_size`
+characters (default 100000) gets a short "too large to review" comment instead of a model call.
 
 ## How it fits together
 

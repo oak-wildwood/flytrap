@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { githubApi } from '../src/github.js';
 import { writeOutputs } from '../src/outputs.js';
-import { prepare } from '../src/prepare.js';
+import { parseMaxDiffSize, prepare } from '../src/prepare.js';
 import { checkRun, planReview, postReview } from '../src/post-review.js';
 import { swapReaction } from '../src/react.js';
 
@@ -29,7 +29,9 @@ const commands = {
     const event = JSON.parse(readFileSync(requireEnv('GITHUB_EVENT_PATH'), 'utf8'));
     let result;
     try {
-      result = await prepare({ event, api: apiFromEnv() });
+      const excludes = (process.env.FLYTRAP_EXCLUDE ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const maxDiffSize = parseMaxDiffSize(process.env.FLYTRAP_MAX_DIFF_SIZE);
+      result = await prepare({ event, api: apiFromEnv(), excludes, maxDiffSize });
     } catch (err) {
       // A failure after the 👀 went on still hands the swap step its ids (src/prepare.js).
       if (err.outputs) writeOutputs(err.outputs);

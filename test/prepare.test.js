@@ -3,6 +3,11 @@ import assert from 'node:assert/strict';
 import {
   prepare,
   buildPrompt,
+  filterDiff,
+  parseGitattributes,
+  globToRegExp,
+  parseMaxDiffSize,
+  DEFAULT_EXCLUDES,
   closingIssueNumbers,
   conventionsPaths,
   MAX_DIFF_CHARS,
@@ -27,7 +32,7 @@ for (const permission of ['write', 'maintain', 'admin']) {
     assert.equal(result.outputs.is_fork, false);
     assert.equal(result.outputs.checkout_ref, '1111111111111111111111111111111111111111');
     assert.equal(result.diff, fixture('pr.diff'), 'the uncut diff, for post-review to place Findings');
-    assert.deepEqual(api.calls.map(([name]) => name), ['getPermission', 'getPull', 'addReaction', 'getDiff', 'getPull']);
+    assert.deepEqual(api.calls.map(([name]) => name), ['getPermission', 'getPull', 'addReaction', 'getDiff', 'getPull', 'getFileText']);
     assert.deepEqual(api.calls[0], ['getPermission', 'oak']);
     assert.deepEqual(api.calls[2], ['addReaction', 1001, 'eyes']);
     assert.equal(result.outputs.reaction_id, 42);
@@ -414,4 +419,191 @@ test('fails, with the ids for the swap, when the PR moves while its diff is fetc
     assert.deepEqual(err.outputs, { comment_id: 1001, reaction_id: 42 });
     return true;
   });
+});
+
+test('filterDiff drops build output and keeps the rest', () => {
+  const diff = fixture('pr.diff') +
+    'diff --git a/dist/bundle.js b/dist/bundle.js\n@@ -1 +1 @@\n-old\n+new\n';
+  const { diff: filtered, excluded } = filterDiff(diff, DEFAULT_EXCLUDES);
+  assert.ok(filtered.includes('src/add.js'));
+  assert.ok(!filtered.includes('dist/bundle.js'));
+  assert.deepEqual(excluded, ['dist/bundle.js']);
+});
+
+test('filterDiff drops nested lockfiles by basename', () => {
+  const diff = 'diff --git a/packages/api/package-lock.json b/packages/api/package-lock.json\n@@ -1 +1 @@\n-a\n+b\n';
+  assert.equal(filterDiff(diff, DEFAULT_EXCLUDES).diff.trim(), '');
+});
+
+test('stops with no model call when the diff is lockfile-only', async () => {
+  const api = fakeApi({ permission: 'write', diff: 'pr-lockfile-only.diff' });
+  const result = await prepare({ event: event(), api });
+
+  assert.equal(result.proceed, false);
+  assert.match(result.reason, /nothing left to review/);
+  // After the 👀, so the swap step gets the ids it needs to turn it 😕.
+  assert.deepEqual(result.outputs, { comment_id: 1001, reaction_id: 42 });
+  const [, prNumber, comment] = api.calls.find(([name]) => name === 'createComment');
+  assert.equal(prNumber, 7);
+  assert.match(comment, /^## 🪰 Flytrap\n/);
+  assert.match(comment, /Nothing to review: every changed file \(\d+ files?\)/);
+});
+
+test('extends the default excludes with a custom pattern', async () => {
+  const api = fakeApi({ permission: 'write', diff: 'pr-with-generated.diff' });
+  const withoutCustomExclude = await prepare({ event: event(), api });
+  assert.equal(withoutCustomExclude.proceed, true);
+  assert.ok(withoutCustomExclude.outputs.prompt.includes('web/generated/output.js'));
+
+  const result = await prepare({ event: event(), api, excludes: ['web/generated/**'] });
+  assert.equal(result.proceed, true);
+  assert.ok(result.outputs.prompt.includes('src/add.js'));
+  // Out of the diff, but named in the Excluded files list so it isn't dropped unseen.
+  const [beforeDiff, reviewedDiff] = result.outputs.prompt.split('Everything between the fences below is the diff');
+  assert.ok(!reviewedDiff.includes('web/generated/output.js'));
+  assert.match(beforeDiff, /# Excluded files[\s\S]*\nweb\/generated\/output\.js\n/);
+});
+
+test('posts a "too large" comment and stops before the Adapter when over the cap', async () => {
+  const api = fakeApi({ permission: 'write' });
+  const rawDiff = fixture('pr.diff');
+  const cap = rawDiff.length - 1;
+  const result = await prepare({ event: event(), api, maxDiffSize: cap });
+
+  assert.equal(result.proceed, false);
+  assert.match(result.reason, /over the \d+ character cap/);
+  assert.deepEqual(result.outputs, { comment_id: 1001, reaction_id: 42 });
+  const [, prNumber, comment] = api.calls.find(([name]) => name === 'createComment');
+  assert.equal(prNumber, 7);
+  assert.match(comment, /^## 🪰 Flytrap\n/);
+  assert.match(comment, /too large to review/);
+  assert.match(comment, new RegExp(`${cap} character cap`));
+});
+
+test('proceeds with a model call when the diff is exactly at the cap', async () => {
+  const api = fakeApi({ permission: 'write' });
+  const rawDiff = fixture('pr.diff');
+  const result = await prepare({ event: event(), api, maxDiffSize: rawDiff.length });
+
+  assert.equal(result.proceed, true);
+  assert.ok(!api.calls.some(([name]) => name === 'createComment'));
+});
+
+// --- Exclude globs: a bare pattern matches the basename at any depth; * and ? stay in a segment ---
+
+for (const [pattern, path, expected] of [
+  ['package-lock.json', 'package-lock.json', true],
+  ['package-lock.json', 'packages/api/package-lock.json', true],
+  ['package-lock.json', 'package-lock.json.bak', false],
+  ['dist/**', 'dist/a/b.js', true],
+  ['dist/**', 'src/dist/a.js', false],
+  ['*.min.js', 'web/app.min.js', true],
+  ['*.min.js', 'web/app.js', false],
+  ['*.g.cs', 'Foo.g.cs', true],
+  ['*.g.cs', 'foogcs', false], // "." is literal, not "any character"
+  ['src/*.js', 'src/a.js', true],
+  ['src/*.js', 'src/lib/a.js', false], // * does not cross /
+  ['src/**/gen/*.js', 'src/gen/a.js', true],
+  ['src/**/gen/*.js', 'src/a/b/gen/a.js', true],
+  ['src/**/gen/*.js', 'src/a/b/gen/sub/a.js', false],
+  ['file?.txt', 'file1.txt', true],
+  ['file?.txt', 'file12.txt', false],
+  ['file?.txt', 'dir/file/.txt', false], // ? does not match /
+  ['a+b(c).txt', 'a+b(c).txt', true], // regex metacharacters are literal
+  ['*.[ch]', 'src/a.c', true], // fnmatch character classes
+  ['*.[ch]', 'src/a.h', true],
+  ['*.[ch]', 'src/a.o', false],
+  ['v[0-9].txt', 'v7.txt', true],
+  ['v[!0-9].txt', 'v7.txt', false],
+  ['v[!0-9].txt', 'vx.txt', true],
+  ['a[/]b', 'a/b', false], // a class never matches /
+  ['[]x].txt', ']x].txt', false],
+  ['[]x].txt', 'x.txt', true], // ] first is a literal member
+  ['odd[.txt', 'odd[.txt', true], // an unclosed [ is literal
+]) {
+  test(`glob ${pattern} ${expected ? 'matches' : 'does not match'} ${path}`, () => {
+    assert.equal(globToRegExp(pattern).test(path), expected);
+  });
+}
+
+test('filterDiff drops a renamed file when either side matches', () => {
+  const diff = [
+    'diff --git a/src/a.js b/dist/a.js\nsimilarity index 100%\nrename from src/a.js\nrename to dist/a.js\n',
+    'diff --git a/build/b.js b/src/b.js\nsimilarity index 100%\nrename from build/b.js\nrename to src/b.js\n',
+    'diff --git a/src/c.js b/src/c.js\n@@ -1 +1 @@\n-a\n+b\n',
+  ].join('');
+  const { diff: kept } = filterDiff(diff, DEFAULT_EXCLUDES);
+  assert.ok(!kept.includes('dist/a.js'));
+  assert.ok(!kept.includes('build/b.js'));
+  assert.ok(kept.includes('src/c.js'));
+});
+
+// --- max_diff_size ---
+
+for (const [raw, expected] of [[undefined, undefined], ['', undefined], ['  ', undefined], ['100000', 100000], ['100_000', 100000], ['100,000', 100000], [' 5 ', 5]]) {
+  test(`max_diff_size ${JSON.stringify(raw)} is ${expected}`, () => {
+    assert.equal(parseMaxDiffSize(raw), expected);
+  });
+}
+
+for (const raw of ['100k', '1e5', '-5', '0', '1.5', 'abc', '_100', '100__000']) {
+  test(`max_diff_size ${JSON.stringify(raw)} is rejected`, () => {
+    assert.throws(() => parseMaxDiffSize(raw), /max_diff_size must be a positive whole number/);
+  });
+}
+
+// --- linguist-generated from the base commit's .gitattributes ---
+
+test('parseGitattributes keeps linguist-generated patterns and honors later unsets', () => {
+  const text = [
+    '# comment',
+    '*.png binary',
+    'api/gen/** linguist-generated',
+    '/schema.graphql linguist-generated=true',
+    'docs/*.md linguist-generated',
+    'docs/*.md -linguist-generated',
+    'vendor/** linguist-vendored linguist-generated=false',
+  ].join('\n');
+  assert.deepEqual(parseGitattributes(text), ['api/gen/**', '/schema.graphql']);
+});
+
+test('a leading / anchors a pattern to the root', () => {
+  assert.equal(globToRegExp('/schema.graphql').test('schema.graphql'), true);
+  assert.equal(globToRegExp('/schema.graphql').test('sub/schema.graphql'), false);
+  assert.equal(globToRegExp('schema.graphql').test('sub/schema.graphql'), true);
+});
+
+test("excludes the base commit's linguist-generated paths", async () => {
+  const api = fakeApi({ permission: 'write', diff: 'pr-with-generated.diff', gitattributes: 'web/generated/** linguist-generated\n' });
+  const result = await prepare({ event: event(), api });
+
+  assert.deepEqual(api.calls.find(([name]) => name === 'getFileText'), ['getFileText', '.gitattributes', jsonFixture('pull-same-repo.json').base.sha]);
+  const reviewedDiff = result.outputs.prompt.split('Everything between the fences below is the diff')[1];
+  assert.ok(!reviewedDiff.includes('web/generated/output.js'));
+  assert.ok(reviewedDiff.includes('src/add.js'));
+});
+
+test('a failed .gitattributes read is only a warning', async () => {
+  const api = fakeApi({ permission: 'write' });
+  api.getFileText = async () => { throw new Error('GitHub GET failed: 500'); };
+  const warnings = [];
+  const result = await prepare({ event: event(), api, warn: (m) => warnings.push(m) });
+
+  assert.equal(result.proceed, true);
+  assert.deepEqual(warnings, ['could not read .gitattributes for linguist-generated paths: GitHub GET failed: 500']);
+});
+
+test('nested dist folders are excluded; nested build folders are not', () => {
+  assert.equal(globToRegExp('**/dist/**').test('packages/web/dist/bundle.js'), true);
+  assert.ok(DEFAULT_EXCLUDES.includes('**/dist/**'));
+  const { excluded } = filterDiff(
+    'diff --git a/packages/web/dist/a.js b/packages/web/dist/a.js\n@@ -1 +1 @@\n-a\n+b\n' +
+      'diff --git a/tools/build/deploy.sh b/tools/build/deploy.sh\n@@ -1 +1 @@\n-a\n+b\n',
+    DEFAULT_EXCLUDES,
+  );
+  assert.deepEqual(excluded, ['packages/web/dist/a.js']);
+});
+
+test('no Excluded files section when nothing was excluded', () => {
+  assert.doesNotMatch(buildPrompt(promptArgs()), /# Excluded files/);
 });
