@@ -8,8 +8,8 @@ test('swaps 👀 for 🚀 on success', async () => {
   await swapReaction({ commentId: 1001, reactionId: '42', outcome: 'success', api });
 
   assert.deepEqual(api.calls, [
-    ['deleteReaction', 1001, '42'],
     ['addReaction', 1001, 'rocket'],
+    ['deleteReaction', 1001, '42'],
   ]);
 });
 
@@ -19,8 +19,8 @@ for (const outcome of ['failure', 'cancelled', 'skipped', undefined]) {
     await swapReaction({ commentId: 1001, reactionId: '42', outcome, api });
 
     assert.deepEqual(api.calls, [
-      ['deleteReaction', 1001, '42'],
       ['addReaction', 1001, 'confused'],
+      ['deleteReaction', 1001, '42'],
     ]);
   });
 }

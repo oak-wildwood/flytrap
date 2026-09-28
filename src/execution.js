@@ -27,7 +27,7 @@ export function findDenial(raw) {
   return {
     tool: denial.tool_name ?? 'unknown',
     input: denial.tool_input ?? null,
-    // What the model was told, when the transcript has it. For the job summary only.
+    // What the model was told, when the transcript has it; post-review adds it to the error.
     message: toolResultText(entries, denial.tool_use_id),
   };
 }

@@ -36,7 +36,8 @@ export function planReview({ raw, executionRaw, prNumber }) {
   const denial = findDenial(executionRaw);
   if (denial) {
     throw new Error(
-      `the Harness's execution denied permission to use ${denial.tool} with input ${truncate(JSON.stringify(denial.input))}`,
+      `the Harness's execution denied permission to use ${denial.tool} with input ${truncate(JSON.stringify(denial.input))}` +
+        (denial.message ? `; the model was told: ${truncate(denial.message)}` : ''),
     );
   }
   const review = parseFindings(raw);

@@ -79,7 +79,7 @@ test('fails without a PR number', () => {
 test('fails on a permission denial, naming the tool and its input', () => {
   assert.throws(
     () => planReview({ raw: fixture('findings-approve.json'), executionRaw: denialExecution(), prNumber: 7 }),
-    /denied permission to use Bash with input \{"command":"rm -rf \/"\}/,
+    /denied permission to use Bash with input \{"command":"rm -rf \/"\}; the model was told: Claude requested permissions to use Bash/,
   );
 });
 
@@ -94,7 +94,7 @@ test('truncates a large denied input so the failure reason stays readable', () =
     () => planReview({ raw: fixture('findings-approve.json'), executionRaw, prNumber: 7 }),
     (err) => {
       assert.match(err.message, /denied permission to use Write with input \{"file_path":"a\.js"/);
-      assert.match(err.message, /… \(\d+ chars\)$/);
+      assert.match(err.message, /… \(\d+ chars\); the model was told: Claude requested permissions to use Write\.$/);
       assert.ok(err.message.length < 500);
       return true;
     },

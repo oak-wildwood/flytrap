@@ -12,9 +12,11 @@ export async function swapReaction({ commentId, reactionId, outcome, api, warn =
   // reaction at all rather than adding one now.
   if (!reactionId) return;
   const content = outcome === 'success' ? 'rocket' : 'confused';
+  // Add before delete: if the second call fails, the worst case is both reactions, which still
+  // shows the run happened, rather than none, which looks like a comment Flytrap ignored.
   try {
-    await api.deleteReaction(commentId, reactionId);
     await api.addReaction(commentId, content);
+    await api.deleteReaction(commentId, reactionId);
   } catch (err) {
     warn(`could not swap the 👀 reaction for the outcome: ${err.message}`);
   }
