@@ -51,7 +51,7 @@ export function checkRun({ raw, executionRaw }) {
 /**
  * @param {{ raw: string|undefined, executionRaw?: string, prNumber: number, diff: string, commitId?: string }} args
  */
-export function planReview({ raw, executionRaw, prNumber, diff, commitId }) {
+export function planReview({ raw, executionRaw, prNumber, diff, commitId, inline: placeInline = true }) {
   if (!Number.isInteger(prNumber) || prNumber < 1) throw new Error('a pull request number is required');
   const review = checkRun({ raw, executionRaw });
   if (typeof diff !== 'string') throw new Error('the pull request diff is required to place Findings');
@@ -62,7 +62,7 @@ export function planReview({ raw, executionRaw, prNumber, diff, commitId }) {
   const comments = [];
   for (const f of bySeverity(review.findings)) {
     const end = Math.max(f.line, f.end_line ?? f.line);
-    if (!findHunk(hunks, f.file, f.line, end)) {
+    if (!placeInline || !findHunk(hunks, f.file, f.line, end)) {
       outside.push(f);
       continue;
     }
@@ -93,12 +93,21 @@ export function planReview({ raw, executionRaw, prNumber, diff, commitId }) {
   };
 }
 
-export async function postReview({ raw, executionRaw, prNumber, diff, commitId, api }) {
+export async function postReview({ raw, executionRaw, prNumber, diff, commitId, api, warn = (message) => console.error(`::warning::${message}`) }) {
   const plan = planReview({ raw, executionRaw, prNumber, diff, commitId });
-  for (const action of plan.actions) {
-    await api.createReview(prNumber, action.body);
+  try {
+    for (const action of plan.actions) await api.createReview(prNumber, action.body);
+    return plan;
+  } catch (err) {
+    // GitHub answers 422 when an inline comment doesn't land on the diff it knows (a push it
+    // raced, a path it spells differently). Rather than lose the Review, post it again with every
+    // Finding in the body. Anything else is a real failure.
+    if (!/ failed: 422\b/.test(err.message) || !plan.actions[0]?.body.comments?.length) throw err;
+    warn(`GitHub rejected the inline comments, so every Finding is in the review body instead: ${err.message}`);
+    const fallback = planReview({ raw, executionRaw, prNumber, diff, commitId, inline: false });
+    for (const action of fallback.actions) await api.createReview(prNumber, action.body);
+    return fallback;
   }
-  return plan;
 }
 
 // A denied Write or Edit carries a whole file as its input; keep the failure reason readable.

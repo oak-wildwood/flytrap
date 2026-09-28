@@ -69,6 +69,17 @@ export async function prepare({ event, api, warn = (message) => console.error(`:
   const reaction = { comment_id: comment.id, reaction_id: reactionId };
   try {
     const diff = await api.getDiff(number);
+    // The diff endpoint only serves the PR's current head, so check it's still the head we read:
+    // the inline comments are pinned to head_sha, and the checkout below uses it too. A push in
+    // between would put the model's line numbers on the wrong commit, and GitHub would reject the
+    // whole review. Failing here (after the 👀, so it turns 😕) costs a re-comment, not a Review.
+    const after = await api.getPull(number);
+    if (after.head.sha !== pull.head.sha) {
+      throw new Error(
+        `pull request #${number} moved from ${pull.head.sha.slice(0, 7)} to ${after.head.sha.slice(0, 7)} ` +
+          'while Flytrap was reading it; comment @flytrap again to review the new head',
+      );
+    }
 
     // The Spec: the issues this pull request closes, and nothing else. An issue that's merely
     // mentioned (no closing keyword) doesn't count. One issue that can't be fetched (a typo, a
@@ -100,8 +111,9 @@ export async function prepare({ event, api, warn = (message) => console.error(`:
         ...reaction,
         head_sha: pull.head.sha,
         is_fork: headRepo !== baseRepo,
+        // The exact commit the diff was taken at, not refs/pull/N/head, which moves on a push.
         // Fetched from the base repository, so fork PRs check out without access to the fork.
-        checkout_ref: `refs/pull/${number}/head`,
+        checkout_ref: pull.head.sha,
         prompt: buildPrompt({ repository: baseRepo, pull, diff, issues, specGaps }),
         json_schema: JSON.stringify(schemaForHarness(issues.length > 0)),
       },

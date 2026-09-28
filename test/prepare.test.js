@@ -25,9 +25,9 @@ for (const permission of ['write', 'maintain', 'admin']) {
     assert.equal(result.proceed, true);
     assert.equal(result.outputs.pr_number, 7);
     assert.equal(result.outputs.is_fork, false);
-    assert.equal(result.outputs.checkout_ref, 'refs/pull/7/head');
+    assert.equal(result.outputs.checkout_ref, '1111111111111111111111111111111111111111');
     assert.equal(result.diff, fixture('pr.diff'), 'the uncut diff, for post-review to place Findings');
-    assert.deepEqual(api.calls.map(([name]) => name), ['getPermission', 'getPull', 'addReaction', 'getDiff']);
+    assert.deepEqual(api.calls.map(([name]) => name), ['getPermission', 'getPull', 'addReaction', 'getDiff', 'getPull']);
     assert.deepEqual(api.calls[0], ['getPermission', 'oak']);
     assert.deepEqual(api.calls[2], ['addReaction', 1001, 'eyes']);
     assert.equal(result.outputs.reaction_id, 42);
@@ -56,7 +56,7 @@ test('checks out a fork PR through the base repository', async () => {
   assert.equal(result.proceed, true);
   assert.equal(result.outputs.is_fork, true);
   assert.equal(result.outputs.head_sha, '2222222222222222222222222222222222222222');
-  assert.equal(result.outputs.checkout_ref, 'refs/pull/7/head');
+  assert.equal(result.outputs.checkout_ref, '2222222222222222222222222222222222222222');
 });
 
 test('still checks permission first on a fork PR from a read-only commenter', async () => {
@@ -399,4 +399,19 @@ test('the Conventions list only covers the diff the model is shown', () => {
 
   assert.match(prompt, /^shown\/AGENTS\.md$/m);
   assert.doesNotMatch(prompt, /^hidden\/AGENTS\.md$/m);
+});
+
+test('fails, with the ids for the swap, when the PR moves while its diff is fetched', async () => {
+  const api = fakeApi({ permission: 'write' });
+  let reads = 0;
+  api.getPull = async () => {
+    const pull = jsonFixture('pull-same-repo.json');
+    return ++reads === 1 ? pull : { ...pull, head: { ...pull.head, sha: '3333333333333333333333333333333333333333' } };
+  };
+
+  await assert.rejects(prepare({ event: event(), api }), (err) => {
+    assert.match(err.message, /moved from 1111111 to 3333333 while Flytrap was reading it; comment @flytrap again/);
+    assert.deepEqual(err.outputs, { comment_id: 1001, reaction_id: 42 });
+    return true;
+  });
 });

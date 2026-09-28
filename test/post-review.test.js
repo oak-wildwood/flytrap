@@ -313,3 +313,39 @@ test('checkRun checks the transcript before the Findings', () => {
   assert.throws(() => checkRun({ raw: '', executionRaw: denialExecution() }), /denied permission/);
   assert.equal(checkRun({ raw: fixture('findings-approve.json') }).verdict, 'approve');
 });
+
+// --- A 422 from GitHub on the inline comments falls back to a body-only review ---
+
+test('posts every Finding in the body when GitHub rejects the inline comments', async () => {
+  const api = fakeApi();
+  const create = api.createReview;
+  let attempts = 0;
+  api.createReview = async (number, review) => {
+    if (++attempts === 1) throw new Error('GitHub POST /pulls/7/reviews failed: 422 {"message":"Line could not be resolved"}');
+    return create(number, review);
+  };
+  const warnings = [];
+  const plan = await postReview({
+    raw: fixture('findings-request-changes.json'),
+    prNumber: 7,
+    diff: fixture('pr.diff'),
+    commitId: SHA,
+    api,
+    warn: (m) => warnings.push(m),
+  });
+
+  assert.equal(attempts, 2);
+  assert.deepEqual(plan.actions[0].body.comments, []);
+  assert.match(plan.actions[0].body.body, /add\(\) now subtracts/);
+  assert.deepEqual(api.calls, [['createReview', 7, plan.actions[0].body]]);
+  assert.match(warnings[0], /GitHub rejected the inline comments/);
+});
+
+test('any other GitHub failure still fails the post', async () => {
+  const api = fakeApi();
+  api.createReview = async () => { throw new Error('GitHub POST /pulls/7/reviews failed: 500 oops'); };
+  await assert.rejects(
+    postReview({ raw: fixture('findings-request-changes.json'), prNumber: 7, diff: fixture('pr.diff'), commitId: SHA, api }),
+    /500/,
+  );
+});

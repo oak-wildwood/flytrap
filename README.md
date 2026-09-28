@@ -49,7 +49,7 @@ fails the job with a clear error before any model call.
 Only a comment from a collaborator with `write`, `maintain` or `admin` permission on the repo
 starts a Review; a comment from anyone else, or from a bot, is ignored before any checkout or
 model call. This holds for fork pull requests too, where the run has the base repository's
-secrets: the PR head is checked out through the base repository (`refs/pull/N/head`), so a Review
+secrets: the PR's head commit is checked out by SHA through the base repository, so a Review
 runs without needing access to the fork, and nothing in the checkout is ever executed — the model
 can only read files, with `Read`, `Glob` and `Grep`.
 
