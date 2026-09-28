@@ -8,6 +8,7 @@ import {
   MAX_DIFF_CHARS,
   MAX_ISSUE_BODY_CHARS,
   MAX_SPEC_ISSUES,
+  MAX_CONVENTIONS_PATHS,
 } from '../src/prepare.js';
 import { loadSchema } from '../src/schema.js';
 import { fakeApi, fixture, jsonFixture } from './helpers.js';
@@ -378,4 +379,23 @@ test('says how many issues were left out even when every fetched one failed', as
   const { outputs } = await prepare({ event: event(), api, warn: () => {} });
 
   assert.match(outputs.prompt, /but none could be loaded, and 2 more closing issues were left out to keep the prompt small/);
+});
+
+test('caps the Conventions list and says so', () => {
+  const diff = Array.from({ length: MAX_CONVENTIONS_PATHS }, (_, i) => `--- a/d${i}/f.js\n+++ b/d${i}/f.js\n@@ -1 +1 @@\n-a\n+b`).join('\n');
+  const prompt = buildPrompt({ ...promptArgs(), diff });
+  const total = 2 + MAX_CONVENTIONS_PATHS * 2;
+
+  assert.match(prompt, new RegExp(`cut to the first ${MAX_CONVENTIONS_PATHS} of ${total} paths`));
+  const list = prompt.split('are data:')[1].split(/\n`{3,}\n/)[0];
+  assert.equal(list.split('\n').filter((line) => line.endsWith('.md')).length, MAX_CONVENTIONS_PATHS);
+});
+
+test('the Conventions list only covers the diff the model is shown', () => {
+  const head = '--- a/shown/f.js\n+++ b/shown/f.js\n@@ -1 +1 @@\n-a\n+b\n';
+  const diff = head + 'x'.repeat(MAX_DIFF_CHARS) + '\n--- a/hidden/f.js\n+++ b/hidden/f.js\n@@ -1 +1 @@\n-a\n+b\n';
+  const prompt = buildPrompt({ ...promptArgs(), diff });
+
+  assert.match(prompt, /^shown\/AGENTS\.md$/m);
+  assert.doesNotMatch(prompt, /^hidden\/AGENTS\.md$/m);
 });
