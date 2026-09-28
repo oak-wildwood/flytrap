@@ -19,6 +19,18 @@ inputs:
     description: Token Flytrap's own steps use to read the PR and post the Review.
     required: false
     default: ${{ github.token }}
+  exclude:
+    description: >
+      Extra glob patterns (one per line) to drop from the diff before review, on top of the
+      defaults (lockfiles, build output, minified files, and common generated-file paths).
+    required: false
+    default: ''
+  max_diff_size:
+    description: >
+      Maximum size, in characters, of the diff after excludes. Over this, Flytrap posts a
+      "too large to review" comment and makes no model call.
+    required: false
+    default: '100000'
 
 runs:
   using: composite
@@ -34,6 +46,8 @@ runs:
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        FLYTRAP_EXCLUDE: ${{ inputs.exclude }}
+        FLYTRAP_MAX_DIFF_SIZE: ${{ inputs.max_diff_size }}
       run: node "$GITHUB_ACTION_PATH/bin/flytrap.js" prepare
 
     - name: Say why there is no Review

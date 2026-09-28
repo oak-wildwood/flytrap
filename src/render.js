@@ -121,3 +121,18 @@ function fenced(text, info = '') {
   const fence = '`'.repeat(Math.max(3, longestBacktickRun(text) + 1));
   return `${fence}${info}\n${text.replace(/\n$/, '')}\n${fence}`;
 }
+
+// The comment posted instead of a Review when the filtered diff is over the size cap. Not tagged
+// with MARKER: it isn't a Review, so a later run's dedup logic must not treat it as one to collapse.
+/** @param {{ size: number, cap: number }} args */
+export function renderTooLarge({ size, cap }) {
+  return [
+    '## 🪰 Flytrap',
+    '',
+    `This pull request's diff is too large to review: ${size} characters after excluding ` +
+      `lockfiles, build output and other generated paths, over the ${cap} character cap.`,
+    '',
+    'Split it into smaller pull requests, or narrow the diff (for example by excluding more ' +
+      'generated paths with the `exclude` input), and ask again.',
+  ].join('\n') + '\n';
+}

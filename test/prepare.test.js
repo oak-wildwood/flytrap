@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   prepare,
   buildPrompt,
+  filterDiff,
+  DEFAULT_EXCLUDES,
   closingIssueNumbers,
   conventionsPaths,
   MAX_DIFF_CHARS,
@@ -414,4 +416,65 @@ test('fails, with the ids for the swap, when the PR moves while its diff is fetc
     assert.deepEqual(err.outputs, { comment_id: 1001, reaction_id: 42 });
     return true;
   });
+});
+
+test('filterDiff drops build output and keeps the rest', () => {
+  const diff = fixture('pr.diff') +
+    'diff --git a/dist/bundle.js b/dist/bundle.js\n@@ -1 +1 @@\n-old\n+new\n';
+  const filtered = filterDiff(diff, DEFAULT_EXCLUDES);
+  assert.ok(filtered.includes('src/add.js'));
+  assert.ok(!filtered.includes('dist/bundle.js'));
+});
+
+test('filterDiff drops nested lockfiles by basename', () => {
+  const diff = 'diff --git a/packages/api/package-lock.json b/packages/api/package-lock.json\n@@ -1 +1 @@\n-a\n+b\n';
+  assert.equal(filterDiff(diff, DEFAULT_EXCLUDES).trim(), '');
+});
+
+test('stops with no model call when the diff is lockfile-only', async () => {
+  const api = fakeApi({ permission: 'write', diff: 'pr-lockfile-only.diff' });
+  const result = await prepare({ event: event(), api });
+
+  assert.equal(result.proceed, false);
+  assert.match(result.reason, /nothing left to review/);
+  // After the 👀, so the swap step gets the ids it needs to turn it 😕.
+  assert.deepEqual(result.outputs, { comment_id: 1001, reaction_id: 42 });
+  assert.ok(!api.calls.some(([name]) => name === 'createComment'), 'a silent stop, not a posted comment');
+});
+
+test('extends the default excludes with a custom pattern', async () => {
+  const api = fakeApi({ permission: 'write', diff: 'pr-with-generated.diff' });
+  const withoutCustomExclude = await prepare({ event: event(), api });
+  assert.equal(withoutCustomExclude.proceed, true);
+  assert.ok(withoutCustomExclude.outputs.prompt.includes('web/generated/output.js'));
+
+  const result = await prepare({ event: event(), api, excludes: ['web/generated/**'] });
+  assert.equal(result.proceed, true);
+  assert.ok(result.outputs.prompt.includes('src/add.js'));
+  assert.ok(!result.outputs.prompt.includes('web/generated/output.js'));
+});
+
+test('posts a "too large" comment and stops before the Adapter when over the cap', async () => {
+  const api = fakeApi({ permission: 'write' });
+  const rawDiff = fixture('pr.diff');
+  const cap = rawDiff.length - 1;
+  const result = await prepare({ event: event(), api, maxDiffSize: cap });
+
+  assert.equal(result.proceed, false);
+  assert.match(result.reason, /over the \d+ character cap/);
+  assert.deepEqual(result.outputs, { comment_id: 1001, reaction_id: 42 });
+  const [, prNumber, comment] = api.calls.find(([name]) => name === 'createComment');
+  assert.equal(prNumber, 7);
+  assert.match(comment, /^## 🪰 Flytrap\n/);
+  assert.match(comment, /too large to review/);
+  assert.match(comment, new RegExp(`${cap} character cap`));
+});
+
+test('proceeds with a model call when the diff is exactly at the cap', async () => {
+  const api = fakeApi({ permission: 'write' });
+  const rawDiff = fixture('pr.diff');
+  const result = await prepare({ event: event(), api, maxDiffSize: rawDiff.length });
+
+  assert.equal(result.proceed, true);
+  assert.ok(!api.calls.some(([name]) => name === 'createComment'));
 });
