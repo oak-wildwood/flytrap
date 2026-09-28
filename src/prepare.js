@@ -58,25 +58,33 @@ export async function prepare({ event, api, warn = (message) => console.error(`:
     warn(`could not react to the comment: ${err.message}`);
   }
 
-  const diff = await api.getDiff(number);
+  // So a later step can swap the 👀 for the outcome.
+  const reaction = { comment_id: comment.id, reaction_id: reactionId };
+  try {
+    const diff = await api.getDiff(number);
 
-  const baseRepo = pull.base.repo.full_name;
-  const headRepo = pull.head.repo?.full_name ?? null; // null when the fork has been deleted
-  return {
-    proceed: true,
-    reason: `@${login} asked for a Review of #${number}`,
-    outputs: {
-      pr_number: number,
-      // So a later step can swap the 👀 for the outcome.
-      reaction_id: reactionId,
-      head_sha: pull.head.sha,
-      is_fork: headRepo !== baseRepo,
-      // Fetched from the base repository, so fork PRs check out without access to the fork.
-      checkout_ref: `refs/pull/${number}/head`,
-      prompt: buildPrompt({ repository: baseRepo, pull, diff }),
-      json_schema: JSON.stringify(schemaForHarness()),
-    },
-  };
+    const baseRepo = pull.base.repo.full_name;
+    const headRepo = pull.head.repo?.full_name ?? null; // null when the fork has been deleted
+    return {
+      proceed: true,
+      reason: `@${login} asked for a Review of #${number}`,
+      outputs: {
+        pr_number: number,
+        ...reaction,
+        head_sha: pull.head.sha,
+        is_fork: headRepo !== baseRepo,
+        // Fetched from the base repository, so fork PRs check out without access to the fork.
+        checkout_ref: `refs/pull/${number}/head`,
+        prompt: buildPrompt({ repository: baseRepo, pull, diff }),
+        json_schema: JSON.stringify(schemaForHarness()),
+      },
+    };
+  } catch (err) {
+    // The 👀 is already on. Without these outputs the swap step would skip and leave the 👀 on a
+    // Review that is never coming; `flytrap prepare` writes them before failing the step.
+    err.outputs = reaction;
+    throw err;
+  }
 }
 
 // The Claude CLI's validator rejects the draft 2020-12 `$schema` URI, and the schema uses no

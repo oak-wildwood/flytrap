@@ -29,6 +29,10 @@ export function fakeApi({ permission, roleName = permission, pull = 'pull-same-r
       calls.push(['addReaction', commentId, content]);
       return { id: 42, content };
     },
+    async deleteReaction(commentId, reactionId) {
+      calls.push(['deleteReaction', commentId, reactionId]);
+      return null;
+    },
     async createComment(number, body) {
       calls.push(['createComment', number, body]);
       return { id: 1 };
