@@ -49,9 +49,9 @@ export function checkRun({ raw, executionRaw }) {
 // `diff` must be the diff the Findings were made against, and `commitId` the head commit it was
 // taken at, so GitHub places the inline comments on the lines the model saw.
 /**
- * @param {{ raw: string|undefined, executionRaw?: string, prNumber: number, diff: string, commitId?: string }} args
+ * @param {{ raw: string|undefined, executionRaw?: string, prNumber: number, diff: string, commitId?: string, allowInline?: boolean }} args
  */
-export function planReview({ raw, executionRaw, prNumber, diff, commitId, inline: placeInline = true }) {
+export function planReview({ raw, executionRaw, prNumber, diff, commitId, allowInline = true }) {
   if (!Number.isInteger(prNumber) || prNumber < 1) throw new Error('a pull request number is required');
   const review = checkRun({ raw, executionRaw });
   if (typeof diff !== 'string') throw new Error('the pull request diff is required to place Findings');
@@ -62,7 +62,7 @@ export function planReview({ raw, executionRaw, prNumber, diff, commitId, inline
   const comments = [];
   for (const f of bySeverity(review.findings)) {
     const end = Math.max(f.line, f.end_line ?? f.line);
-    if (!placeInline || !findHunk(hunks, f.file, f.line, end)) {
+    if (!allowInline || !findHunk(hunks, f.file, f.line, end)) {
       outside.push(f);
       continue;
     }
@@ -104,7 +104,7 @@ export async function postReview({ raw, executionRaw, prNumber, diff, commitId, 
     // Finding in the body. Anything else is a real failure.
     if (!/ failed: 422\b/.test(err.message) || !plan.actions[0]?.body.comments?.length) throw err;
     warn(`GitHub rejected the inline comments, so every Finding is in the review body instead: ${err.message}`);
-    const fallback = planReview({ raw, executionRaw, prNumber, diff, commitId, inline: false });
+    const fallback = planReview({ raw, executionRaw, prNumber, diff, commitId, allowInline: false });
     for (const action of fallback.actions) await api.createReview(prNumber, action.body);
     return fallback;
   }
