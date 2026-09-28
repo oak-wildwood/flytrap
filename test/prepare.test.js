@@ -4,6 +4,8 @@ import {
   prepare,
   buildPrompt,
   filterDiff,
+  globToRegExp,
+  parseMaxDiffSize,
   DEFAULT_EXCLUDES,
   closingIssueNumbers,
   conventionsPaths,
@@ -478,3 +480,56 @@ test('proceeds with a model call when the diff is exactly at the cap', async () 
   assert.equal(result.proceed, true);
   assert.ok(!api.calls.some(([name]) => name === 'createComment'));
 });
+
+// --- Exclude globs: a bare pattern matches the basename at any depth; * and ? stay in a segment ---
+
+for (const [pattern, path, expected] of [
+  ['package-lock.json', 'package-lock.json', true],
+  ['package-lock.json', 'packages/api/package-lock.json', true],
+  ['package-lock.json', 'package-lock.json.bak', false],
+  ['dist/**', 'dist/a/b.js', true],
+  ['dist/**', 'src/dist/a.js', false],
+  ['*.min.js', 'web/app.min.js', true],
+  ['*.min.js', 'web/app.js', false],
+  ['*.g.cs', 'Foo.g.cs', true],
+  ['*.g.cs', 'foogcs', false], // "." is literal, not "any character"
+  ['src/*.js', 'src/a.js', true],
+  ['src/*.js', 'src/lib/a.js', false], // * does not cross /
+  ['src/**/gen/*.js', 'src/gen/a.js', true],
+  ['src/**/gen/*.js', 'src/a/b/gen/a.js', true],
+  ['src/**/gen/*.js', 'src/a/b/gen/sub/a.js', false],
+  ['file?.txt', 'file1.txt', true],
+  ['file?.txt', 'file12.txt', false],
+  ['file?.txt', 'dir/file/.txt', false], // ? does not match /
+  ['a+b(c).txt', 'a+b(c).txt', true], // regex metacharacters are literal
+]) {
+  test(`glob ${pattern} ${expected ? 'matches' : 'does not match'} ${path}`, () => {
+    assert.equal(globToRegExp(pattern).test(path), expected);
+  });
+}
+
+test('filterDiff drops a renamed file when either side matches', () => {
+  const diff = [
+    'diff --git a/src/a.js b/dist/a.js\nsimilarity index 100%\nrename from src/a.js\nrename to dist/a.js\n',
+    'diff --git a/build/b.js b/src/b.js\nsimilarity index 100%\nrename from build/b.js\nrename to src/b.js\n',
+    'diff --git a/src/c.js b/src/c.js\n@@ -1 +1 @@\n-a\n+b\n',
+  ].join('');
+  const kept = filterDiff(diff, DEFAULT_EXCLUDES);
+  assert.ok(!kept.includes('dist/a.js'));
+  assert.ok(!kept.includes('build/b.js'));
+  assert.ok(kept.includes('src/c.js'));
+});
+
+// --- max_diff_size ---
+
+for (const [raw, expected] of [[undefined, undefined], ['', undefined], ['  ', undefined], ['100000', 100000], ['100_000', 100000], ['100,000', 100000], [' 5 ', 5]]) {
+  test(`max_diff_size ${JSON.stringify(raw)} is ${expected}`, () => {
+    assert.equal(parseMaxDiffSize(raw), expected);
+  });
+}
+
+for (const raw of ['100k', '1e5', '-5', '0', '1.5', 'abc', '_100', '100__000']) {
+  test(`max_diff_size ${JSON.stringify(raw)} is rejected`, () => {
+    assert.throws(() => parseMaxDiffSize(raw), /max_diff_size must be a positive whole number/);
+  });
+}

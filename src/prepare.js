@@ -34,9 +34,24 @@ export const DEFAULT_EXCLUDES = [
   '*.pb.go', '*_pb2.py', '*.g.cs', '*.g.dart', '*.designer.cs',
 ];
 
-// Below MAX_DIFF_CHARS (the GITHUB_OUTPUT safety net) with headroom, so a diff that fails this
-// cap never needs that truncation. `max_diff_size` lets a repo raise or lower it.
+// Below MAX_DIFF_CHARS (the GITHUB_OUTPUT safety net) with headroom, so a diff within this cap
+// never needs that truncation. `max_diff_size` lets a repo raise or lower it; above MAX_DIFF_CHARS
+// the prompt's diff is cut again.
 export const DEFAULT_MAX_DIFF_SIZE = 100_000;
+
+// The `max_diff_size` input: a positive whole number of characters, digit separators allowed
+// (`100000`, `100_000`, `100,000`). Anything else throws: `Number('100k')` is NaN, and a NaN cap
+// would silently let every diff through. Empty means the default.
+export function parseMaxDiffSize(raw) {
+  const text = (raw ?? '').trim();
+  if (!text) return undefined;
+  const digits = text.replace(/(?<=\d)[_,](?=\d)/g, '');
+  const value = /^\d+$/.test(digits) ? Number(digits) : NaN;
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`max_diff_size must be a positive whole number of characters, got ${JSON.stringify(text)}`);
+  }
+  return value;
+}
 
 // Decides whether this event gets a Review and, if so, gathers what the Harness needs.
 // Returns { proceed: false, reason } to stop, or { proceed: true, reason, diff, outputs }.
@@ -254,7 +269,7 @@ export function filterDiff(diff, excludeGlobs) {
 // Translates one glob pattern into a matcher for a full repo-relative path. A pattern with no `/`
 // matches the basename at any depth (like a .gitignore rule); `**` crosses directory boundaries
 // and `*`/`?` stay within one segment.
-function globToRegExp(pattern) {
+export function globToRegExp(pattern) {
   const source = pattern.includes('/') ? pattern : `**/${pattern}`;
   let re = '';
   for (let i = 0; i < source.length; i++) {
