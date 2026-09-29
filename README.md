@@ -114,10 +114,19 @@ not something to copy into another repo.
 
 ## Releasing
 
-Bump `version` in `package.json` on a PR and merge it, then run `scripts/release.sh X.Y.Z` from an
-up-to-date `main`. It runs the tests, creates the immutable `vX.Y.Z` tag, moves the major tag
-(`v1`) to it, and publishes a GitHub release. This repo's own review workflow stays on `@main`, so
-Flytrap reviews its own PRs with the latest merged code.
+Adopters on `@v1` (gh-repo-init's workflow template among them) only get a change when a release is
+cut, so merging to `main` alone ships nothing to them. Cut one when a change reaches what adopters
+run (`action.yml`, `src/`, the Rubric skill or the findings schema), not for docs, tests or scripts.
+
+1. Bump `version` in `package.json` on a `chore:` PR and merge it: a minor bump for a `feat`, a
+   patch for a `fix`, a major for a breaking change.
+2. From an up-to-date `main`, run `npm run release -- X.Y.Z` (the same as `scripts/release.sh
+   X.Y.Z`). It runs the tests, creates the immutable `vX.Y.Z` tag, moves the major tag (`v1`) to
+   it, and publishes a GitHub release. Pushed tags can't be redone, so a mistake means a new
+   version.
+
+This repo's own review workflow stays on `@main`, so Flytrap reviews its own PRs with the latest
+merged code.
 
 ## Developing
 
