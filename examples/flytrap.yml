@@ -2,7 +2,7 @@ name: Flytrap
 
 # Comment @flytrap on a pull request to get a Review. Copy this file to .github/workflows/.
 #
-# `@v1` follows the latest 1.x release; pin `@v1.0.0` (or a SHA) for one exact version.
+# `@v1` follows the latest 1.x release; pin `@v1.1.0` (or a SHA) for one exact version.
 #
 # Use the published action (oak-wildwood/flytrap@...), even in the flytrap repo itself. `uses: ./`
 # would run the action from the workspace, and on a PR that is the PR's own code with the repo's
