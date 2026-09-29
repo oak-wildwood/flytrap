@@ -36,7 +36,7 @@ Finding, with a one-click suggested change where it has one. See
 ### Versions
 
 `@v1` follows the latest 1.x release, so you get fixes and new features without breaking changes.
-To pin one exact release instead, use its tag, for example `oak-wildwood/flytrap@v1.1.0`, or a
+To pin one exact release instead, use its tag, for example `oak-wildwood/flytrap@v1.1.1`, or a
 commit SHA. The action, the Rubric and the findings schema are versioned together, so any of these
 gives you a consistent set. [Releases](https://github.com/oak-wildwood/flytrap/releases) lists
 what changed.

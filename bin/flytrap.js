@@ -13,7 +13,7 @@ import { buildReport, listFixtures, prepareFixture } from '../src/eval.js';
 const USAGE = `Usage:
   flytrap prepare
       Reads the triggering event from $GITHUB_EVENT_PATH, checks the commenter may start a
-      Review, picks the model (`@flytrap use <name>`, else $FLYTRAP_MODEL), and writes step outputs to $GITHUB_OUTPUT (stdout when unset).
+      Review, picks the model ("@flytrap use <name>", else $FLYTRAP_MODEL), and writes step outputs to $GITHUB_OUTPUT (stdout when unset).
   flytrap post-review --pr <number> [--findings <file>] [--execution <file>] [--diff <file>] [--commit <sha>] [--model <id>] [--plan]
       Posts Findings JSON (from --findings, else $FLYTRAP_FINDINGS) as one PR review, with an
       inline comment for each Finding inside the diff, after checking the execution transcript
