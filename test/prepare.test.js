@@ -54,6 +54,44 @@ for (const permission of ['read', 'triage', 'none']) {
   });
 }
 
+const withBody = (body) => {
+  const e = event();
+  e.comment.body = body;
+  return e;
+};
+
+test('uses the workflow default model when the comment names none', async () => {
+  const result = await prepare({ event: event(), api: fakeApi({ permission: 'write' }) });
+  assert.equal(result.outputs.model, 'opus');
+  const custom = await prepare({ event: event(), api: fakeApi({ permission: 'write' }), defaultModel: 'sonnet' });
+  assert.equal(custom.outputs.model, 'sonnet');
+});
+
+test('@flytrap use <name> picks the model, as a listed model ID', async () => {
+  const result = await prepare({ event: withBody('@flytrap use sonnet5.5'), api: fakeApi({ permission: 'write' }) });
+  assert.equal(result.proceed, true);
+  assert.equal(result.outputs.model, 'claude-sonnet-5-5');
+});
+
+test('an unknown model stops with a comment listing the ones that work, and no diff fetch', async () => {
+  const api = fakeApi({ permission: 'write' });
+  const result = await prepare({ event: withBody('@flytrap use gpt4'), api });
+
+  assert.equal(result.proceed, false);
+  assert.match(result.reason, /"gpt4" is not a model/);
+  assert.deepEqual(result.outputs, { comment_id: 1001, reaction_id: 42 }, 'the 👀 still gets swapped to 😕');
+  assert.deepEqual(api.calls.map(([name]) => name), ['getPermission', 'getPull', 'addReaction', 'createComment']);
+  assert.match(api.calls[3][2], /`gpt4`/);
+  assert.match(api.calls[3][2], /`sonnet`/);
+});
+
+test('a commenter without write access cannot pick a model, or learn which are listed', async () => {
+  const api = fakeApi({ permission: 'read' });
+  const result = await prepare({ event: withBody('@flytrap use gpt4'), api });
+  assert.equal(result.proceed, false);
+  assert.deepEqual(api.calls.map(([name]) => name), ['getPermission']);
+});
+
 test('checks out a fork PR through the base repository', async () => {
   const api = fakeApi({ permission: 'write', pull: 'pull-fork.json' });
   const result = await prepare({ event: event(), api });

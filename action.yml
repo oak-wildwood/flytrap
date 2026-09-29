@@ -12,7 +12,9 @@ inputs:
     description: Anthropic API key for the Claude Adapter. Give this or claude_code_oauth_token.
     required: false
   model:
-    description: Model the Claude Adapter runs.
+    description: >
+      Model the Claude Adapter runs, unless the comment picks one with "@flytrap use <name>"
+      (sonnet, opus, fable, haiku, or a version such as sonnet5.5).
     required: false
     default: opus
   github_token:
@@ -48,6 +50,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         FLYTRAP_EXCLUDE: ${{ inputs.exclude }}
         FLYTRAP_MAX_DIFF_SIZE: ${{ inputs.max_diff_size }}
+        FLYTRAP_MODEL: ${{ inputs.model }}
       run: node "$GITHUB_ACTION_PATH/bin/flytrap.js" prepare
 
     - name: Say why there is no Review
@@ -93,7 +96,7 @@ runs:
         github_token: ${{ inputs.github_token }}
         prompt: ${{ steps.prepare.outputs.prompt }}
         claude_args: |
-          --model ${{ inputs.model }}
+          --model ${{ steps.prepare.outputs.model }}
           --tools Read,Glob,Grep
           --allowedTools Read,Glob,Grep
           --json-schema '${{ steps.prepare.outputs.json_schema }}'
@@ -112,9 +115,10 @@ runs:
         PR_NUMBER: ${{ steps.prepare.outputs.pr_number }}
         DIFF_PATH: ${{ steps.prepare.outputs.diff_path }}
         HEAD_SHA: ${{ steps.prepare.outputs.head_sha }}
+        MODEL: ${{ steps.prepare.outputs.model }}
       run: >-
         node "$GITHUB_ACTION_PATH/bin/flytrap.js" post-review
-        --pr "$PR_NUMBER" --diff "$DIFF_PATH" --commit "$HEAD_SHA"
+        --pr "$PR_NUMBER" --diff "$DIFF_PATH" --commit "$HEAD_SHA" --model "$MODEL"
 
     # Swaps the 👀 from #16 for 🚀 once the Review has posted, or 😕 if anything failed after the
     # 👀 went on — so the outcome shows up on the comment, not only in the Actions tab. `always()`

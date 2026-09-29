@@ -49,9 +49,9 @@ export function checkRun({ raw, executionRaw }) {
 // `diff` must be the diff the Findings were made against, and `commitId` the head commit it was
 // taken at, so GitHub places the inline comments on the lines the model saw.
 /**
- * @param {{ raw: string|undefined, executionRaw?: string, prNumber: number, diff: string, commitId?: string, allowInline?: boolean }} args
+ * @param {{ raw: string|undefined, executionRaw?: string, prNumber: number, diff: string, commitId?: string, model?: string, allowInline?: boolean }} args
  */
-export function planReview({ raw, executionRaw, prNumber, diff, commitId, allowInline = true }) {
+export function planReview({ raw, executionRaw, prNumber, diff, commitId, model, allowInline = true }) {
   if (!Number.isInteger(prNumber) || prNumber < 1) throw new Error('a pull request number is required');
   const review = checkRun({ raw, executionRaw });
   if (typeof diff !== 'string') throw new Error('the pull request diff is required to place Findings');
@@ -85,7 +85,7 @@ export function planReview({ raw, executionRaw, prNumber, diff, commitId, allowI
         body: {
           ...(commitId ? { commit_id: commitId } : {}),
           event: 'COMMENT',
-          body: renderSummary(review, { inline, outside }),
+          body: renderSummary(review, { inline, outside }, { model }),
           comments,
         },
       },
@@ -93,8 +93,8 @@ export function planReview({ raw, executionRaw, prNumber, diff, commitId, allowI
   };
 }
 
-export async function postReview({ raw, executionRaw, prNumber, diff, commitId, api, warn = (message) => console.error(`::warning::${message}`) }) {
-  const plan = planReview({ raw, executionRaw, prNumber, diff, commitId });
+export async function postReview({ raw, executionRaw, prNumber, diff, commitId, model, api, warn = (message) => console.error(`::warning::${message}`) }) {
+  const plan = planReview({ raw, executionRaw, prNumber, diff, commitId, model });
   try {
     for (const action of plan.actions) await api.createReview(prNumber, action.body);
     return plan;
@@ -104,7 +104,7 @@ export async function postReview({ raw, executionRaw, prNumber, diff, commitId, 
     // Finding in the body. Anything else is a real failure.
     if (!/ failed: 422\b/.test(err.message) || !plan.actions[0]?.body.comments?.length) throw err;
     warn(`GitHub rejected the inline comments, so every Finding is in the review body instead: ${err.message}`);
-    const fallback = planReview({ raw, executionRaw, prNumber, diff, commitId, allowInline: false });
+    const fallback = planReview({ raw, executionRaw, prNumber, diff, commitId, model, allowInline: false });
     for (const action of fallback.actions) await api.createReview(prNumber, action.body);
     return fallback;
   }
