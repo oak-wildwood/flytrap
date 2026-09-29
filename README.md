@@ -47,13 +47,32 @@ what changed.
 | --- | --- | --- | --- |
 | `claude_code_oauth_token` | One of this or `anthropic_api_key` | — | Claude Code OAuth token for the Claude Adapter |
 | `anthropic_api_key` | One of this or `claude_code_oauth_token` | — | Anthropic API key for the Claude Adapter |
-| `model` | No | `opus` | Model the Claude Adapter runs |
+| `model` | No | `opus` | Model the Claude Adapter runs, unless a comment picks one (see below) |
 | `github_token` | No | `${{ github.token }}` | Token Flytrap's own steps use to read the PR and post the Review |
 | `exclude` | No | — | Extra glob patterns, one per line, dropped from the diff on top of the defaults |
 | `max_diff_size` | No | `100000` | Characters of diff, after excludes, over which Flytrap posts a "too large" comment instead of reviewing |
 
 Give exactly one of `claude_code_oauth_token` and `anthropic_api_key`. Setting neither or both
 fails the job with a clear error before any model call.
+
+### Choosing a model per comment
+
+Put `use <name>` right after the mention, with nothing after the name on that line, to run that
+one Review on a different model:
+
+```
+@flytrap use sonnet5.5
+```
+
+`sonnet`, `opus`, `fable` and `haiku` mean the newest of each family Flytrap lists, and a version
+such as `sonnet5.5` or `haiku 4.5` (or a full model ID) picks one exactly. Case, spaces and dashes
+don't matter. A quoted reply or code block that shows the syntax is ignored. The Review ends with
+the model that ran it, as configured (`opus` for the default, a full ID for an override).
+
+Only listed models work (see [`src/model.js`](src/model.js)); anything else, such as
+`@flytrap use gpt4`, gets a comment naming the ones that do, and no model call. See
+[ADR 0005](docs/adr/0005-model-choice-is-an-allowlist.md) for why. Without `use <name>`, the `model`
+input applies.
 
 ### Write-access and fork-PR behavior
 

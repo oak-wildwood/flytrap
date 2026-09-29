@@ -20,10 +20,18 @@ function claudeArgs(yaml) {
   return block;
 }
 
+// Only where --model comes from differs: a Review takes it from `prepare`, which may have read a
+// `@flytrap use <name>` in the comment, and the eval from its own dispatch input, so a comment
+// can't change what the eval measures. Everything else has to match.
+const withoutModel = (args) => args.filter((line) => !line.startsWith('--model '));
+
 test('the eval workflow calls the Adapter with the same claude_args as action.yml', () => {
   const eval_ = claudeArgs(read('.github/workflows/flytrap-eval.yml'));
+  const action = claudeArgs(read('action.yml'));
   assert.ok(eval_.some((line) => line.startsWith('--tools ')), 'found the block');
-  assert.deepEqual(eval_, claudeArgs(read('action.yml')));
+  assert.deepEqual(withoutModel(eval_), withoutModel(action));
+  assert.ok(eval_.includes('--model ${{ inputs.model }}'));
+  assert.ok(action.includes('--model ${{ steps.prepare.outputs.model }}'));
 });
 
 // The keys under the claude-code-action step's `with:`.

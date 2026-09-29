@@ -1,3 +1,5 @@
+import { MODEL_NAMES } from './model.js';
+
 /** @typedef {import('./schema.js').Review} Review */
 
 // Turns a validated Review into the markdown of one GitHub review: its body and its inline
@@ -33,8 +35,9 @@ const CATEGORY = {
 /**
  * @param {Review} review
  * @param {{ inline: Finding[], outside: Finding[] }} placed
+ * @param {{ model?: string }} [options] the model that ran, named at the end when known
  */
-export function renderSummary(review, { inline, outside }) {
+export function renderSummary(review, { inline, outside }, { model } = {}) {
   const lines = [
     MARKER,
     `## 🪰 Flytrap: ${VERDICT[review.verdict]}`,
@@ -45,7 +48,7 @@ export function renderSummary(review, { inline, outside }) {
 
   if (review.findings.length === 0) {
     lines.push('No findings.');
-    return lines.join('\n') + '\n';
+    return withModel(lines, model);
   }
 
   lines.push(`### Findings (${review.findings.length})`, '');
@@ -69,6 +72,12 @@ export function renderSummary(review, { inline, outside }) {
       if (f.suggestion) lines.push(indent(fenced(f.suggestion)));
     }
   }
+  return withModel(lines, model);
+}
+
+// Which model ran, so a per-comment override (`@flytrap use sonnet5.5`) is visible on the Review.
+function withModel(lines, model) {
+  if (model) lines.push('', `<sub>Reviewed with ${code(model)}</sub>`);
   return lines.join('\n') + '\n';
 }
 
@@ -134,6 +143,20 @@ export function renderTooLarge({ size, cap }) {
     '',
     'Split it into smaller pull requests, or narrow the diff (for example by excluding more ' +
       'generated paths with the `exclude` input), and ask again.',
+  ].join('\n') + '\n';
+}
+
+// The comment posted when the commenter asked for a model Flytrap doesn't list. Says which ones it
+// does, so the retry is one edit. The name is the commenter's own text, shown as code. Not tagged
+// with MARKER, for the same reason as renderTooLarge.
+/** @param {{ name: string }} args */
+export function renderUnknownModel({ name }) {
+  return [
+    '## 🪰 Flytrap',
+    '',
+    `I can't run a Review on ${code(name)}. Ask for one of: ${MODEL_NAMES.map(code).join(', ')}.`,
+    '',
+    'For example, `@flytrap use sonnet5.5`. Without a model, Flytrap uses the one the workflow sets.',
   ].join('\n') + '\n';
 }
 

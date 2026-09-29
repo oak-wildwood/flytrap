@@ -13,13 +13,13 @@ import { buildReport, listFixtures, prepareFixture } from '../src/eval.js';
 const USAGE = `Usage:
   flytrap prepare
       Reads the triggering event from $GITHUB_EVENT_PATH, checks the commenter may start a
-      Review, and writes step outputs to $GITHUB_OUTPUT (stdout when unset).
-  flytrap post-review --pr <number> [--findings <file>] [--execution <file>] [--diff <file>] [--commit <sha>] [--plan]
+      Review, picks the model (`@flytrap use <name>`, else $FLYTRAP_MODEL), and writes step outputs to $GITHUB_OUTPUT (stdout when unset).
+  flytrap post-review --pr <number> [--findings <file>] [--execution <file>] [--diff <file>] [--commit <sha>] [--model <id>] [--plan]
       Posts Findings JSON (from --findings, else $FLYTRAP_FINDINGS) as one PR review, with an
       inline comment for each Finding inside the diff, after checking the execution transcript
       (from --execution, else $FLYTRAP_EXECUTION_FILE) for a permission denial. --diff is the diff
       the Findings were made against (fetched when omitted) and --commit the head commit it was
-      taken at. --plan prints what would be posted as JSON and makes no GitHub calls; it needs --diff.
+      taken at. --model names the model that ran, in a footer on the Review. --plan prints what would be posted as JSON and makes no GitHub calls; it needs --diff.
   flytrap swap-reaction
       Swaps the 👀 reaction (from $FLYTRAP_REACTION_ID, $FLYTRAP_COMMENT_ID) for 🚀 or 😕
       depending on $FLYTRAP_OUTCOME. A no-op when $FLYTRAP_REACTION_ID is empty. Never fails
@@ -39,7 +39,8 @@ const commands = {
     try {
       const excludes = (process.env.FLYTRAP_EXCLUDE ?? '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
       const maxDiffSize = parseMaxDiffSize(process.env.FLYTRAP_MAX_DIFF_SIZE);
-      result = await prepare({ event, api: apiFromEnv(), excludes, maxDiffSize });
+      const defaultModel = process.env.FLYTRAP_MODEL || undefined;
+      result = await prepare({ event, api: apiFromEnv(), excludes, maxDiffSize, defaultModel });
     } catch (err) {
       // A failure after the 👀 went on still hands the swap step its ids (src/prepare.js).
       if (err.outputs) writeOutputs(err.outputs);
@@ -68,6 +69,7 @@ const commands = {
         execution: { type: 'string' },
         diff: { type: 'string' },
         commit: { type: 'string' },
+        model: { type: 'string' },
         plan: { type: 'boolean' },
       },
     });
@@ -76,17 +78,18 @@ const commands = {
     const executionPath = values.execution ?? process.env.FLYTRAP_EXECUTION_FILE;
     const executionRaw = executionPath ? readFileSync(executionPath, 'utf8') : undefined;
     const commitId = values.commit || undefined;
+    const model = values.model || undefined;
     // Validate before touching GitHub config, so empty output or a denial reports itself as that.
     checkRun({ raw, executionRaw });
     if (values.plan) {
       if (!values.diff) throw new Error('--plan needs --diff, since it makes no GitHub calls');
-      const plan = planReview({ raw, executionRaw, prNumber, diff: readFileSync(values.diff, 'utf8'), commitId });
+      const plan = planReview({ raw, executionRaw, prNumber, diff: readFileSync(values.diff, 'utf8'), commitId, model });
       console.log(JSON.stringify(plan, null, 2));
       return;
     }
     const api = apiFromEnv();
     const diff = values.diff ? readFileSync(values.diff, 'utf8') : await api.getDiff(prNumber);
-    await postReview({ raw, executionRaw, prNumber, diff, commitId, api });
+    await postReview({ raw, executionRaw, prNumber, diff, commitId, model, api });
     console.error(`Posted the Review on #${prNumber}`);
   },
 

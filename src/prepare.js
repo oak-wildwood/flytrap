@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { loadSchema } from './schema.js';
-import { renderNothingToReview, renderTooLarge } from './render.js';
+import { renderNothingToReview, renderTooLarge, renderUnknownModel } from './render.js';
+import { parseModelOverride } from './model.js';
 
 const SKILL_URL = new URL('../skills/flytrap-review/SKILL.md', import.meta.url);
 
@@ -68,13 +69,13 @@ export function parseMaxDiffSize(raw) {
 /**
  * @param {{
  *   event: any, api: ReturnType<typeof import('./github.js').githubApi>, warn?: (message: string) => void,
- *   excludes?: string[], maxDiffSize?: number,
+ *   excludes?: string[], maxDiffSize?: number, defaultModel?: string,
  * }} args
  * @returns {Promise<{ proceed: boolean, reason: string, diff?: string, outputs?: Record<string, string|number|boolean> }>}
  */
 export async function prepare({
   event, api, warn = (message) => console.error(`::warning::${message}`),
-  excludes = [], maxDiffSize = DEFAULT_MAX_DIFF_SIZE,
+  excludes = [], maxDiffSize = DEFAULT_MAX_DIFF_SIZE, defaultModel = 'opus',
 }) {
   const comment = event.comment;
   if (!event.issue?.pull_request || !comment) {
@@ -115,6 +116,16 @@ export async function prepare({
   // So a later step can swap the 👀 for the outcome.
   const reaction = { comment_id: comment.id, reaction_id: reactionId };
   try {
+    // `@flytrap use sonnet5.5` picks the model for this Review. Only a commenter who got past the
+    // permission check gets here, so only they can spend tokens on a model of their choosing, and
+    // only from the list in src/model.js. Before the diff is fetched: an unknown name costs nothing.
+    const override = parseModelOverride(comment.body);
+    if (override && !override.model) {
+      await api.createComment(number, renderUnknownModel({ name: override.name }));
+      return stopAfterReaction(`"${override.name}" is not a model Flytrap can run`, reaction);
+    }
+    const model = override?.model ?? defaultModel;
+
     const rawDiff = await api.getDiff(number);
     // The diff endpoint only serves the PR's current head, so check it's still the head we read:
     // the inline comments are pinned to head_sha, and the checkout below uses it too. A push in
@@ -174,6 +185,7 @@ export async function prepare({
         pr_number: number,
         ...reaction,
         head_sha: pull.head.sha,
+        model,
         is_fork: headRepo !== baseRepo,
         // The exact commit the diff was taken at, not refs/pull/N/head, which moves on a push.
         // Fetched from the base repository, so fork PRs check out without access to the fork.

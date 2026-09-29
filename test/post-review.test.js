@@ -349,3 +349,10 @@ test('any other GitHub failure still fails the post', async () => {
     /500/,
   );
 });
+
+test('names the model that ran at the end of the Review, when known', () => {
+  const args = { raw: fixture('findings-approve.json'), prNumber: 7, diff: fixture('pr.diff') };
+  const named = planReview({ ...args, model: 'claude-sonnet-5-5' }).actions[0].body.body;
+  assert.match(named, /<sub>Reviewed with `claude-sonnet-5-5`<\/sub>\n$/);
+  assert.doesNotMatch(planReview(args).actions[0].body.body, /Reviewed with/);
+});
