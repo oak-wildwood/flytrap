@@ -1,0 +1,22 @@
+diff --git a/src/math.js b/src/math.js
+index 3333333..5555555 100644
+--- a/src/math.js
++++ b/src/math.js
+@@ -1,4 +1,6 @@
++// Arithmetic helpers.
++
+ export function add(a, b) {
+-  return a + b;
++    return a - b;
+ }
+
+@@ -20,5 +22,7 @@ export function mul(a, b) {
+ export function div(a, b) {
+-  return a / b;
++  if (b === 0) return 0;
++  const q = a / b;
++  return q;
+ }
+
+ export const PI = 3.14;
+\ No newline at end of file

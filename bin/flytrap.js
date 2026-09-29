@@ -14,12 +14,16 @@ const USAGE = `Usage:
   flytrap prepare
       Reads the triggering event from $GITHUB_EVENT_PATH, checks the commenter may start a
       Review, picks the model ("@flytrap use <name>", else $FLYTRAP_MODEL), and writes step outputs to $GITHUB_OUTPUT (stdout when unset).
-  flytrap post-review --pr <number> [--findings <file>] [--execution <file>] [--diff <file>] [--commit <sha>] [--model <id>] [--plan]
+  flytrap post-review --pr <number> [--findings <file>] [--execution <file>] [--diff <file>] [--commit <sha>] [--model <id>] [--plan [--earlier <file>]]
       Posts Findings JSON (from --findings, else $FLYTRAP_FINDINGS) as one PR review, with an
       inline comment for each Finding inside the diff, after checking the execution transcript
-      (from --execution, else $FLYTRAP_EXECUTION_FILE) for a permission denial. --diff is the diff
-      the Findings were made against (fetched when omitted) and --commit the head commit it was
-      taken at. --model names the model that ran, in a footer on the Review. --plan prints what would be posted as JSON and makes no GitHub calls; it needs --diff.
+      (from --execution, else $FLYTRAP_EXECUTION_FILE) for a permission denial. A Finding that
+      already has an open Flytrap thread is not posted again, and earlier Flytrap summaries are
+      collapsed as outdated. --diff is the diff the Findings were made against (fetched when
+      omitted) and --commit the head commit it was taken at. --model names the model that ran, in
+      a footer on the Review. --plan prints what would be posted as JSON and makes no GitHub
+      calls; it needs --diff, and reads earlier reviews and threads from --earlier (none when
+      omitted) as JSON: { "reviews": [...], "threads": [...] }.
   flytrap swap-reaction
       Swaps the 👀 reaction (from $FLYTRAP_REACTION_ID, $FLYTRAP_COMMENT_ID) for 🚀 or 😕
       depending on $FLYTRAP_OUTCOME. A no-op when $FLYTRAP_REACTION_ID is empty. Never fails
@@ -71,6 +75,7 @@ const commands = {
         commit: { type: 'string' },
         model: { type: 'string' },
         plan: { type: 'boolean' },
+        earlier: { type: 'string' },
       },
     });
     const prNumber = Number(values.pr);
@@ -83,7 +88,8 @@ const commands = {
     checkRun({ raw, executionRaw });
     if (values.plan) {
       if (!values.diff) throw new Error('--plan needs --diff, since it makes no GitHub calls');
-      const plan = planReview({ raw, executionRaw, prNumber, diff: readFileSync(values.diff, 'utf8'), commitId, model });
+      const earlier = values.earlier ? JSON.parse(readFileSync(values.earlier, 'utf8')) : undefined;
+      const plan = planReview({ raw, executionRaw, prNumber, diff: readFileSync(values.diff, 'utf8'), commitId, model, earlier });
       console.log(JSON.stringify(plan, null, 2));
       return;
     }

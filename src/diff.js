@@ -10,9 +10,26 @@
  * @returns {Map<string, Hunk[]>} Hunks by the file's path after the change.
  */
 export function parseDiff(diff) {
+  return walk(diff).files;
+}
+
+/**
+ * The text of every new-file line the diff shows (added or context), by path and line number.
+ * @param {string} diff
+ * @returns {Map<string, Map<number, string>>}
+ */
+export function newLines(diff) {
+  return walk(diff).texts;
+}
+
+function walk(diff) {
   /** @type {Map<string, Hunk[]>} */
   const files = new Map();
+  /** @type {Map<string, Map<number, string>>} */
+  const texts = new Map();
   let hunks = null;
+  let lines = null;
+  let next = 0; // The new-file line number of the next added or context line.
   // Lines left in the current hunk, counted from its header, so an added line that happens to
   // start with "++ " is never mistaken for a file header.
   let oldLeft = 0;
@@ -20,20 +37,25 @@ export function parseDiff(diff) {
 
   for (const line of diff.split('\n')) {
     if (oldLeft > 0 || newLeft > 0) {
+      if (line.startsWith('-')) { oldLeft--; continue; }
+      if (line.startsWith('\\')) continue; // "\ No newline at end of file"
       if (line.startsWith('+')) newLeft--;
-      else if (line.startsWith('-')) oldLeft--;
-      else if (line.startsWith('\\')) continue; // "\ No newline at end of file"
       else { oldLeft--; newLeft--; }
+      lines?.set(next++, line.slice(1));
       continue;
     }
     if (line.startsWith('diff --git ')) {
       hunks = null;
+      lines = null;
     } else if (line.startsWith('+++ ')) {
       const path = newPath(line.slice(4));
       hunks = null;
+      lines = null;
       if (path !== null) {
         hunks = files.get(path) ?? [];
         files.set(path, hunks);
+        lines = texts.get(path) ?? new Map();
+        texts.set(path, lines);
       }
     } else if (line.startsWith('@@ ')) {
       const m = /^@@ -\d+(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line);
@@ -41,11 +63,12 @@ export function parseDiff(diff) {
       oldLeft = m[1] === undefined ? 1 : Number(m[1]);
       const start = Number(m[2]);
       newLeft = m[3] === undefined ? 1 : Number(m[3]);
+      next = start;
       // A hunk that only deletes shows no new-file lines to comment on.
       if (hunks && newLeft > 0) hunks.push({ start, end: start + newLeft - 1 });
     }
   }
-  return files;
+  return { files, texts };
 }
 
 // The "+++" side of a file header: "b/path", a quoted "\"b/path\"", or /dev/null for a deletion.

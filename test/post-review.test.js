@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { checkRun, planReview, postReview } from '../src/post-review.js';
 import { MARKER } from '../src/render.js';
-import { fakeApi, fixture } from './helpers.js';
+import { fakeApi, fixture, jsonFixture } from './helpers.js';
 
 const SHA = '1111111111111111111111111111111111111111';
 const denialExecution = () => fixture('execution-denial.json');
@@ -16,6 +16,13 @@ function plan(findings, { verdict = 'approve_with_suggestions', summary = 'A sum
   const { actions } = planReview({ raw, prNumber: 7, diff: fixture('review.diff'), commitId: SHA });
   assert.equal(actions.length, 1);
   return actions[0];
+}
+
+// Every inline comment starts with its hidden fingerprint; most tests are about the rest.
+const FINGERPRINT = /^<!-- flytrap:finding [0-9a-f]{16} -->\n/;
+function withoutFingerprint(comment) {
+  assert.match(comment.body, FINGERPRINT);
+  return { ...comment, body: comment.body.replace(FINGERPRINT, '') };
 }
 
 function finding(fields) {
@@ -39,7 +46,7 @@ test('the review event is COMMENT whatever the Verdict', () => {
 
 test('a Finding inside a hunk posts inline on its line', () => {
   const { body } = plan([finding({ file: 'src/math.js', line: 2, title: 'add() now subtracts', body: 'Use `a + b`.' })]);
-  assert.deepEqual(body.comments, [{
+  assert.deepEqual(body.comments.map(withoutFingerprint), [{
     path: 'src/math.js',
     line: 2,
     side: 'RIGHT',
@@ -93,7 +100,7 @@ test('Findings outside the diff are listed in the summary, and the review still 
 
 test('a suggestion renders as a suggested-change block', () => {
   const { body } = plan([finding({ file: 'src/math.js', line: 2, body: 'Use `a + b`.', suggestion: '  return a + b;\n' })]);
-  assert.equal(body.comments[0].body, `**Suggestion** · Correctness: A title
+  assert.equal(withoutFingerprint(body.comments[0]).body, `**Suggestion** · Correctness: A title
 
 Use \`a + b\`.
 
@@ -121,6 +128,7 @@ test('a mix of Findings: inline ones as comments, the rest in the summary, by Se
     diff: fixture('review.diff'),
     commitId: SHA,
   });
+  actions[0].body.comments = actions[0].body.comments.map(withoutFingerprint);
   assert.deepEqual(actions, [{
     type: 'review',
     method: 'POST',
@@ -247,7 +255,7 @@ test('posts exactly what it planned', async () => {
   });
 
   assert.equal(plan.actions[0].body.comments.length, 2);
-  assert.deepEqual(api.calls, [['createReview', 7, plan.actions[0].body]]);
+  assert.deepEqual(api.calls, [['getEarlierReviews', 7], ['createReview', 7, plan.actions[0].body]]);
 });
 
 test('posts nothing when the output is invalid', async () => {
@@ -337,7 +345,7 @@ test('posts every Finding in the body when GitHub rejects the inline comments', 
   assert.equal(attempts, 2);
   assert.deepEqual(plan.actions[0].body.comments, []);
   assert.match(plan.actions[0].body.body, /add\(\) now subtracts/);
-  assert.deepEqual(api.calls, [['createReview', 7, plan.actions[0].body]]);
+  assert.deepEqual(api.calls, [['getEarlierReviews', 7], ['createReview', 7, plan.actions[0].body]]);
   assert.match(warnings[0], /GitHub rejected the inline comments/);
 });
 
@@ -355,4 +363,113 @@ test('names the model that ran at the end of the Review, when known', () => {
   const named = planReview({ ...args, model: 'claude-sonnet-5-5' }).actions[0].body.body;
   assert.match(named, /<sub>Reviewed with `claude-sonnet-5-5`<\/sub>\n$/);
   assert.doesNotMatch(planReview(args).actions[0].body.body, /Reviewed with/);
+});
+
+// --- Re-runs: fingerprinted threads and earlier summaries ---
+//
+// test/fixtures/earlier-rerun.json is what an earlier run left on the PR: an open thread on
+// `return a - b;` in src/math.js (a Correctness Finding), the summary it posted, an older summary
+// already collapsed, and two reviews by other people, one of them quoting a Flytrap summary.
+
+const SUBTRACTS = finding({ file: 'src/math.js', line: 2, severity: 'blocker', title: 'add() now subtracts', body: 'Use `a + b`.' });
+const PI = finding({ file: 'src/math.js', line: 26, title: 'Use Math.PI' });
+
+function rerun(findings, { diff = 'review.diff', earlier = jsonFixture('earlier-rerun.json') } = {}) {
+  const raw = JSON.stringify({ verdict: 'request_changes', summary: 'A summary.', findings });
+  return planReview({ raw, prNumber: 7, diff: fixture(diff), commitId: SHA, earlier }).actions;
+}
+
+const fingerprintOf = (comment) => comment.body.match(FINGERPRINT)[0];
+
+test('each inline comment starts with a hidden fingerprint of its Finding', () => {
+  const [a, b] = plan([SUBTRACTS, PI]).body.comments;
+  assert.notEqual(fingerprintOf(a), fingerprintOf(b));
+  // The same Finding in another run, even worded differently, gets the same fingerprint.
+  const again = plan([{ ...SUBTRACTS, severity: 'suggestion', title: 'Subtracts', body: 'Other words.' }]).body.comments[0];
+  assert.equal(fingerprintOf(again), fingerprintOf(a));
+});
+
+test('the fingerprint is stable, so threads from earlier releases still match', () => {
+  const [comment] = plan([SUBTRACTS]).body.comments;
+  assert.equal(fingerprintOf(comment), `${jsonFixture('earlier-rerun.json').threads[0].body.split('\n')[0]}\n`);
+});
+
+test('a Finding with an unresolved Flytrap thread is not posted again', () => {
+  const [review] = rerun([SUBTRACTS, PI]);
+  assert.equal(review.body.comments.length, 1);
+  assert.equal(review.body.comments[0].line, 26);
+  assert.match(review.body.body, /^### Findings \(2\)$/m);
+  assert.match(review.body.body, /^1 already has an open thread from an earlier Review, so it is not posted again\.$/m);
+});
+
+test('a Finding whose Flytrap thread was resolved is posted again', () => {
+  const earlier = jsonFixture('earlier-rerun.json');
+  earlier.threads[0].isResolved = true;
+  const [review] = rerun([SUBTRACTS], { earlier });
+  assert.equal(review.body.comments.length, 1);
+  assert.equal(review.body.comments[0].line, 2);
+  assert.doesNotMatch(review.body.body, /open thread/);
+});
+
+test('a Finding whose line shifted still matches its thread', () => {
+  // review-shifted.diff adds two lines above add() and re-indents its return, now on line 4.
+  const [review] = rerun([{ ...SUBTRACTS, line: 4 }], { diff: 'review-shifted.diff' });
+  assert.deepEqual(review.body.comments, []);
+  assert.match(review.body.body, /^1 already has an open thread/m);
+});
+
+test('a Finding of another category on the same line is still posted', () => {
+  const [review] = rerun([{ ...SUBTRACTS, category: 'testing' }]);
+  assert.equal(review.body.comments.length, 1);
+});
+
+test('a thread someone else started cannot hide a Finding, even with a copied fingerprint', () => {
+  const earlier = jsonFixture('earlier-rerun.json');
+  earlier.threads[0].viewerDidAuthor = false;
+  assert.equal(rerun([SUBTRACTS], { earlier })[0].body.comments.length, 1);
+});
+
+test('only a fingerprint at the very start of a thread counts', () => {
+  const earlier = jsonFixture('earlier-rerun.json');
+  earlier.threads[0].body = `Quoting the model:\n${earlier.threads[0].body}`;
+  assert.equal(rerun([SUBTRACTS], { earlier })[0].body.comments.length, 1);
+});
+
+test('earlier Flytrap summaries are collapsed as outdated, and nothing else', () => {
+  const [, ...collapses] = rerun([SUBTRACTS]);
+  assert.deepEqual(collapses, [{ type: 'collapse', subjectId: 'PRR_second', classifier: 'OUTDATED' }]);
+});
+
+test('with no earlier Reviews there is nothing to collapse or skip', () => {
+  const actions = rerun([SUBTRACTS], { earlier: { reviews: [], threads: [] } });
+  assert.equal(actions.length, 1);
+  assert.equal(actions[0].body.comments.length, 1);
+});
+
+test('collapses earlier summaries only after the new Review is posted', async () => {
+  const api = fakeApi({ earlier: jsonFixture('earlier-rerun.json') });
+  const raw = JSON.stringify({ verdict: 'request_changes', summary: 'S.', findings: [SUBTRACTS] });
+  const plan = await postReview({ raw, prNumber: 7, diff: fixture('review.diff'), commitId: SHA, api });
+  assert.deepEqual(api.calls, [
+    ['getEarlierReviews', 7],
+    ['createReview', 7, plan.actions[0].body],
+    ['minimize', 'PRR_second', 'OUTDATED'],
+  ]);
+  assert.deepEqual(plan.actions[0].body.comments, []);
+});
+
+test('a summary that will not collapse is a warning, not a failure', async () => {
+  const api = fakeApi({ earlier: jsonFixture('earlier-rerun.json') });
+  api.minimize = async () => { throw new Error('GitHub GraphQL failed: 403'); };
+  const warnings = [];
+  await postReview({ raw: fixture('findings-approve.json'), prNumber: 7, diff: fixture('pr.diff'), api, warn: (m) => warnings.push(m) });
+  assert.equal(api.calls.filter(([name]) => name === 'createReview').length, 1);
+  assert.match(warnings[0], /could not collapse an earlier Flytrap summary as outdated: GitHub GraphQL failed: 403/);
+});
+
+test('collapses nothing when the new Review fails to post', async () => {
+  const api = fakeApi({ earlier: jsonFixture('earlier-rerun.json') });
+  api.createReview = async () => { throw new Error('GitHub POST /pulls/7/reviews failed: 500 oops'); };
+  await assert.rejects(postReview({ raw: fixture('findings-approve.json'), prNumber: 7, diff: fixture('pr.diff'), api }), /500/);
+  assert.ok(!api.calls.some(([name]) => name === 'minimize'));
 });

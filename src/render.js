@@ -8,6 +8,16 @@ import { MODEL_NAMES } from './model.js';
 
 export const MARKER = '<!-- flytrap:review -->';
 
+// The hidden first line of each inline comment, so a later Review can tell which Finding a thread
+// is about. Only read at the very start of a body: model-written text further down can't forge one.
+export const fingerprintLine = (fingerprint) => `<!-- flytrap:finding ${fingerprint} -->`;
+const FINGERPRINT = /^<!-- flytrap:finding ([0-9a-f]{16}) -->\n/;
+
+/** @param {string} body @returns {string|undefined} */
+export function readFingerprint(body) {
+  return FINGERPRINT.exec(body)?.[1];
+}
+
 const VERDICT = {
   approve: '✅ Approve',
   approve_with_suggestions: '💬 Approve with suggestions',
@@ -31,13 +41,14 @@ const CATEGORY = {
 
 // The review body: Verdict, then summary, then what became of the Findings. Those that could go
 // inline are only counted here; those on lines outside the diff are listed in full, since GitHub
-// would reject them as inline comments and fail the whole review.
+// would reject them as inline comments and fail the whole review. Those that already have an open
+// thread from an earlier Review are only counted too.
 /**
  * @param {Review} review
- * @param {{ inline: Finding[], outside: Finding[] }} placed
+ * @param {{ inline: Finding[], outside: Finding[], open?: Finding[] }} placed
  * @param {{ model?: string }} [options] the model that ran, named at the end when known
  */
-export function renderSummary(review, { inline, outside }, { model } = {}) {
+export function renderSummary(review, { inline, outside, open = [] }, { model } = {}) {
   const lines = [
     MARKER,
     `## 🪰 Flytrap: ${VERDICT[review.verdict]}`,
@@ -55,8 +66,15 @@ export function renderSummary(review, { inline, outside }, { model } = {}) {
   if (inline.length) {
     lines.push(`${inline.length} ${inline.length === 1 ? 'is an inline comment' : 'are inline comments'} on the diff.`);
   }
-  if (outside.length) {
+  if (open.length) {
     if (inline.length) lines.push('');
+    lines.push(
+      `${open.length} already ${open.length === 1 ? 'has an open thread' : 'have open threads'} from an ` +
+        `earlier Review, so ${open.length === 1 ? 'it is' : 'they are'} not posted again.`,
+    );
+  }
+  if (outside.length) {
+    if (inline.length || open.length) lines.push('');
     lines.push(
       `${outside.length} ${outside.length === 1 ? 'is' : 'are'} outside the diff, so ` +
         `${outside.length === 1 ? 'it is' : 'they are'} listed here:`,
@@ -83,9 +101,10 @@ function withModel(lines, model) {
 
 // One inline comment. A suggestion becomes a GitHub suggested change, which replaces exactly the
 // commented lines, matching the schema's "replacement code for exactly line to end_line".
-/** @param {Finding} f */
-export function renderInline(f) {
+/** @param {Finding} f @param {string} fingerprint */
+export function renderInline(f, fingerprint) {
   const lines = [
+    fingerprintLine(fingerprint),
     `**${SEVERITY[f.severity]}** · ${CATEGORY[f.category]}: ${neutralise(oneLine(f.title))}`,
     '',
     neutralise(f.body.trim()),

@@ -1,0 +1,35 @@
+{
+  "reviews": [
+    {
+      "id": "PRR_second",
+      "body": "<!-- flytrap:review -->\n## 🪰 Flytrap: ❌ Request Changes\n\nChanges `add`, which now subtracts.\n",
+      "isMinimized": false,
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "PRR_first",
+      "body": "<!-- flytrap:review -->\n## 🪰 Flytrap: ❌ Request Changes\n\nAn older summary, already collapsed.\n",
+      "isMinimized": true,
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "PRR_human",
+      "body": "Looks fine to me once add() is fixed.",
+      "isMinimized": false,
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "PRR_quoted",
+      "body": "<!-- flytrap:review -->\nSomeone else pasting a Flytrap summary.",
+      "isMinimized": false,
+      "viewerDidAuthor": false
+    }
+  ],
+  "threads": [
+    {
+      "isResolved": false,
+      "viewerDidAuthor": true,
+      "body": "<!-- flytrap:finding e449b49a8ed67ced -->\n**Blocker** · Correctness: add() now subtracts\n\nUse `a + b`.\n"
+    }
+  ]
+}

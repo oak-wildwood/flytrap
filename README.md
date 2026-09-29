@@ -74,6 +74,15 @@ Only listed models work (see [`src/model.js`](src/model.js)); anything else, suc
 [ADR 0005](docs/adr/0005-model-choice-is-an-allowlist.md) for why. Without `use <name>`, the `model`
 input applies.
 
+### Asking again
+
+Push fixes and comment `@flytrap` again to see where things stand. The new Review collapses
+earlier Flytrap summaries as outdated, and doesn't repeat a Finding that already has an open
+Flytrap thread; its summary counts those instead. Each inline comment carries a hidden fingerprint
+of its Finding (the file, the Rubric category and the code on the commented lines, not the line
+number), so a thread still matches when lines above it are added or removed. Resolving a thread
+doesn't hide its Finding: if the problem is still there, the next Review posts it again.
+
 ### Write-access and fork-PR behavior
 
 Only a comment from a collaborator with `write`, `maintain` or `admin` permission on the repo
@@ -97,7 +106,7 @@ characters (default 100000) gets a short "too large to review" comment instead o
 | Findings schema | [`schema/findings.schema.json`](schema/findings.schema.json) | What a Harness must hand back |
 | `flytrap prepare` | [`src/prepare.js`](src/prepare.js) | Checks the commenter's permission, then gathers the diff and prompt |
 | Claude Adapter | [`action.yml`](action.yml) | Runs `claude-code-action` with only `Read,Glob,Grep` and `--json-schema` |
-| `flytrap post-review` | [`src/post-review.js`](src/post-review.js) | Checks for a permission denial, validates the Findings, and posts the review; `--plan` prints it instead |
+| `flytrap post-review` | [`src/post-review.js`](src/post-review.js) | Checks for a permission denial, validates the Findings, skips those with an open thread, posts the review and collapses earlier summaries; `--plan` prints it instead |
 
 The model never writes to GitHub; see [`docs/adr`](docs/adr) for why.
 

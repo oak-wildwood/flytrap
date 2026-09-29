@@ -1,4 +1,4 @@
-// The handful of GitHub REST calls Flytrap makes. Commands take this as a parameter so tests
+// The handful of GitHub REST and GraphQL calls Flytrap makes. Commands take this as a parameter so tests
 // can pass a fake in its place.
 export function githubApi({ token, repository, fetch = globalThis.fetch, baseUrl = 'https://api.github.com' }) {
   if (!token) throw new Error('GITHUB_TOKEN is not set');
@@ -23,7 +23,70 @@ export function githubApi({ token, repository, fetch = globalThis.fetch, baseUrl
     return accept.endsWith('diff') || accept.endsWith('raw') ? res.text() : res.json();
   }
 
+  // GitHub Enterprise Server serves GraphQL at /api/graphql next to the REST API's /api/v3.
+  const graphqlUrl = baseUrl.replace(/\/api\/v3\/?$/, '/api') + '/graphql';
+  const [owner, name] = repository.split('/');
+
+  async function graphql(query, variables) {
+    const res = await fetch(graphqlUrl, {
+      method: 'POST',
+      headers: {
+        accept: 'application/vnd.github+json',
+        authorization: `Bearer ${token}`,
+        'user-agent': 'flytrap',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (!res.ok) throw new Error(`GitHub GraphQL failed: ${res.status} ${await res.text()}`);
+    const { data, errors } = await res.json();
+    if (errors?.length) throw new Error(`GitHub GraphQL failed: ${errors.map((e) => e.message).join('; ')}`);
+    return data;
+  }
+
+  // Every node of one pull request connection, a page at a time.
+  async function all(connection, fields, number) {
+    const nodes = [];
+    let after = null;
+    do {
+      const data = await graphql(
+        `query($owner: String!, $name: String!, $number: Int!, $after: String) {
+          repository(owner: $owner, name: $name) {
+            pullRequest(number: $number) {
+              ${connection}(first: 100, after: $after) { nodes { ${fields} } pageInfo { hasNextPage endCursor } }
+            }
+          }
+        }`,
+        { owner, name, number, after },
+      );
+      const page = data.repository.pullRequest[connection];
+      nodes.push(...page.nodes);
+      after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+    } while (after);
+    return nodes;
+  }
+
   return {
+    // What earlier runs left on a pull request, in the shape src/post-review.js reads: every
+    // review, and every review thread by its first comment. Resolution and collapsing are
+    // GraphQL-only.
+    async getEarlierReviews(number) {
+      const reviews = await all('reviews', 'id body isMinimized viewerDidAuthor', number);
+      const threads = await all('reviewThreads', 'isResolved comments(first: 1) { nodes { body viewerDidAuthor } }', number);
+      return {
+        reviews,
+        threads: threads
+          .filter((t) => t.comments.nodes.length)
+          .map((t) => ({ isResolved: t.isResolved, ...t.comments.nodes[0] })),
+      };
+    },
+    // Collapses a review (or comment) by its node id, e.g. as OUTDATED.
+    async minimize(subjectId, classifier) {
+      await graphql(
+        'mutation($subjectId: ID!, $classifier: ReportedContentClassifiers!) { minimizeComment(input: { subjectId: $subjectId, classifier: $classifier }) { clientMutationId } }',
+        { subjectId, classifier },
+      );
+    },
     // `permission` folds maintain into write and triage into read; `role_name` keeps them apart.
     async getPermission(username) {
       const data = await request('GET', `/collaborators/${encodeURIComponent(username)}/permission`);

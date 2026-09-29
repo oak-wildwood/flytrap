@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findHunk, parseDiff } from '../src/diff.js';
+import { findHunk, newLines, parseDiff } from '../src/diff.js';
 
 const lines = (...rows) => rows.join('\n');
 
@@ -23,6 +23,21 @@ test('reads each hunk as a range of new-file lines', () => {
     ' same',
   );
   assert.deepEqual(hunksOf(diff), { 'src/a.js': [{ start: 1, end: 4 }, { start: 21, end: 22 }] });
+});
+
+test('reads the text of each new-file line the diff shows, deleted lines left out', () => {
+  const diff = lines(
+    'diff --git a/src/a.js b/src/a.js',
+    '--- a/src/a.js',
+    '+++ b/src/a.js',
+    '@@ -1,3 +1,3 @@',
+    ' one',
+    '-two',
+    '+2',
+    ' +three',
+    '\\ No newline at end of file',
+  );
+  assert.deepEqual(Object.fromEntries(newLines(diff)), { 'src/a.js': new Map([[1, 'one'], [2, '2'], [3, '+three']]) });
 });
 
 test('a hunk header without counts is one line', () => {
