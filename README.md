@@ -57,7 +57,8 @@ fails the job with a clear error before any model call.
 
 ### Choosing a model per comment
 
-Add `use <name>` right after the mention to run that one Review on a different model:
+Put `use <name>` right after the mention, with nothing after the name on that line, to run that
+one Review on a different model:
 
 ```
 @flytrap use sonnet5.5
@@ -65,7 +66,8 @@ Add `use <name>` right after the mention to run that one Review on a different m
 
 `sonnet`, `opus`, `fable` and `haiku` mean the newest of each family Flytrap lists, and a version
 such as `sonnet5.5` or `haiku 4.5` (or a full model ID) picks one exactly. Case, spaces and dashes
-don't matter. The Review ends with the model that ran it.
+don't matter. A quoted reply or code block that shows the syntax is ignored. The Review ends with
+the model that ran it, as configured (`opus` for the default, a full ID for an override).
 
 Only listed models work (see [`src/model.js`](src/model.js)); anything else, such as
 `@flytrap use gpt4`, gets a comment naming the ones that do, and no model call. See

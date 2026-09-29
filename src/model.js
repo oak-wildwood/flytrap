@@ -20,21 +20,28 @@ const BY_NAME = new Map(
   Object.entries(MODELS).flatMap(([id, aliases]) => [id, ...aliases].map((name) => [normalize(name), id])),
 );
 
-// "use" has to follow the mention directly, so "@flytrap use the new rubric" or a sentence that
-// happens to contain the word "use" later on isn't read as a request for a model named "the".
-// A version may come after a space: "use sonnet 5.5". Only the first mention counts.
-const OVERRIDE = /(^|\s)@flytrap\b[,:]?[ \t]+use[ \t]+(\S+(?:[ \t]+\d+(?:[.-]\d+)?)?)/i;
+// The whole line has to be the request, `@flytrap use <name>`, so "@flytrap use the new rubric" or
+// "@flytrap use caution on auth" is a comment about something else, not a request for a model named
+// "the". A version may come after a space ("use sonnet 5.5"), and trailing punctuation is fine.
+// A name that is listed nowhere but is alone on the line is a request Flytrap can't meet, and
+// gets an answer saying so.
+const OVERRIDE = /(?:^|\s)@flytrap\b[,:]?[ \t]+use[ \t]+([a-z0-9][\w.-]*(?:[ \t]+\d+(?:[.-]\d+)?)?)[ \t]*[.,;:!?]*[ \t]*$/im;
+
+// A reply that quotes an earlier comment, or a code block that shows the syntax, isn't a request.
+const stripQuoted = (body) =>
+  body.replace(/^[ \t]*(```|~~~)[\s\S]*?(^[ \t]*\1|$(?![\s\S]))/gm, '').replace(/^[ \t]*>.*$/gm, '');
 
 /**
  * Returns null when the comment doesn't ask for a model, `{ name, model }` when it asks for a
- * listed one, and `{ name, model: null }` when it asks for one that isn't listed.
+ * listed one, and `{ name, model: null }` when it asks for one that isn't listed. Only the first
+ * request counts.
  * @param {string} body
  * @returns {{ name: string, model: string|null }|null}
  */
 export function parseModelOverride(body) {
-  const match = OVERRIDE.exec(body ?? '');
+  const match = OVERRIDE.exec(stripQuoted(body ?? ''));
   if (!match) return null;
-  const name = match[2].replace(/[.,;:!?)]+$/, '');
+  const name = match[1].replace(/[.-]+$/, '');
   return { name, model: BY_NAME.get(normalize(name)) ?? null };
 }
 
