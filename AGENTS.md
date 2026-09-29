@@ -96,3 +96,10 @@ that carries the point of the PR rather than the one touching the most files.
 Individual commits on the branch don't survive the squash, so they're for the reviewer rather than
 for history. Use them to separate things worth reviewing apart — a mechanical reformat from a
 behavioral change, say — and don't agonize over their wording.
+
+### Releasing
+
+Adopters pin `@v1`, so a merged change reaches them only when a release is cut. See
+[Releasing](README.md#releasing) for when and how. Opening the `chore:` PR that bumps `version` in
+`package.json` is fine. Do not run `npm run release` or `scripts/release.sh` unless the user asks
+you to in this session: it pushes tags that can't be redone, and it publishes to every adopter.
