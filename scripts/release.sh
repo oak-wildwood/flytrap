@@ -3,7 +3,7 @@
 # can pin either. The action, the Rubric skill and the findings schema all live in this one repo,
 # so one tag versions them together.
 #
-#   scripts/release.sh 1.0.0
+#   npm run release -- 1.0.0      (or scripts/release.sh 1.0.0)
 #
 # Run from an up-to-date main whose package.json already says the version being released.
 set -euo pipefail
