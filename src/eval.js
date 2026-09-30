@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { parseFindings } from './post-review.js';
-import { loadSkillText, fenceFor, schemaForHarness } from './prepare.js';
+import { loadSkillText, fenceFor, schemaForHarness, HARNESS_TERMS } from './prepare.js';
 
 // The Rubric eval set (#10): a small, fixed set of diffs with known planted bugs, plus one
 // clean diff, run through the real Claude Adapter by hand or from workflow_dispatch. This module is
@@ -32,6 +32,8 @@ export function buildEvalPrompt({ diff }) {
   const fence = fenceFor(diff);
 
   return `${skill}
+
+${HARNESS_TERMS}
 
 # This Review
 

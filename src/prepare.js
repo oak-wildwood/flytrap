@@ -364,6 +364,17 @@ export function loadSkillText() {
   return readFileSync(SKILL_URL, 'utf8').replace(/^---\n[\s\S]*?\n---\n/, '').trim();
 }
 
+// What the skill leaves to the harness: how this run differs from an interactive one. The skill
+// itself is harness-neutral so it also works as a local skill; every prompt a Harness gets adds this.
+// Exported so eval prompts carry the same terms (src/eval.js).
+export const HARNESS_TERMS = `# How this Review runs
+
+You are running non-interactively, and nobody will answer questions: work from what you have. The
+diff, and the Spec when there is one, are supplied below. Don't fetch them, or anything else, from
+the network or from git. You can only read files. You were given the findings schema: return
+exactly one JSON object matching it and nothing else, and don't post it anywhere or ask for
+confirmation.`;
+
 // A fence longer than any backtick run in any of `texts`, so none of them can close it early and
 // pass itself off as part of the prompt. Exported so eval prompts fence the same way (src/eval.js).
 export function fenceFor(...texts) {
@@ -431,6 +442,8 @@ export function buildPrompt({ repository, pull, diff, issues = [], specGaps = { 
       : "This pull request has no Spec: it doesn't close any issue. Don't use the spec category.";
 
   return `${skill}
+
+${HARNESS_TERMS}
 
 # This Review
 

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import {
   listFixtures, loadFixture, buildEvalPrompt, prepareFixture, scoreFixture, renderReport, buildReport,
 } from '../src/eval.js';
-import { loadSkillText, schemaForHarness } from '../src/prepare.js';
+import { loadSkillText, schemaForHarness, HARNESS_TERMS } from '../src/prepare.js';
 
 test('lists the fixture set', () => {
   assert.deepEqual(listFixtures(), ['clean', 'injection', 'missing-null-check', 'off-by-one']);
@@ -29,6 +29,7 @@ test('builds a prompt with the Rubric and the diff, but no fixture name and no P
 
   assert.match(prompt, /# Flytrap Review/);
   assert.match(prompt, /This is a Rubric eval fixture, not a real pull request/);
+  assert.ok(prompt.includes(HARNESS_TERMS), 'the eval runs under the same terms as a real Review');
   // The name would tell the model what to find. (The Rubric itself lists "off-by-one" and
   // "injection" as things to check for, the same as in real Reviews, so only the framing is checked.)
   const framing = prompt.slice(loadSkillText().length);
