@@ -1,7 +1,37 @@
 # flytrap
-LLM-powered PR code review — @flytrap on demand or as a PR check. Harness-agnostic review skill + findings schema.
+LLM-powered code review — run it locally as an Agent Skill, or as @flytrap on your pull requests.
+Harness-agnostic review skill + findings schema.
 
-## Using it
+Both ways use the same Rubric, so a local run is a fair preview of what the GitHub Action would
+post. Try it locally first, then set up the Action if you want it on every pull request.
+
+## Trying it locally
+
+The Rubric is an [Agent Skill](skills/flytrap-review/SKILL.md). Install it for Claude Code:
+
+```sh
+mkdir -p ~/.claude/skills/flytrap-review
+curl -fsSL https://raw.githubusercontent.com/oak-wildwood/flytrap/v1/skills/flytrap-review/SKILL.md \
+  -o ~/.claude/skills/flytrap-review/SKILL.md
+```
+
+Put it in a repository's `.claude/skills/flytrap-review/` instead to share it with everyone who
+works there. Then, in a new Claude Code session inside a repository, ask:
+
+```
+flytrap this branch
+flytrap PR 12
+```
+
+A branch is reviewed against its merge base with the default branch, including uncommitted
+changes. A pull request is read with the [`gh` CLI](https://cli.github.com/), and the issues it
+closes are checked as its Spec, as in the Action. You get the Verdict, a summary and the Findings
+grouped by Severity, in the terminal. The skill only reports: it doesn't edit files, commit, or
+post anything.
+
+The skill is plain Markdown, so any harness that reads Agent Skills can use it the same way.
+
+## Using it on GitHub
 
 Add a `CLAUDE_CODE_OAUTH_TOKEN` secret to your repo, then copy this into
 `.github/workflows/flytrap.yml`:
@@ -93,7 +123,7 @@ characters (default 100000) gets a short "too large to review" comment instead o
 
 | Piece | Where | What it does |
 | --- | --- | --- |
-| Rubric | [`skills/flytrap-review/SKILL.md`](skills/flytrap-review/SKILL.md) | The review instructions, as a portable Agent Skill |
+| Rubric | [`skills/flytrap-review/SKILL.md`](skills/flytrap-review/SKILL.md) | The review instructions, as a portable Agent Skill. Runs as-is locally; the Action adds its non-interactive, JSON-only terms (`HARNESS_TERMS`) |
 | Findings schema | [`schema/findings.schema.json`](schema/findings.schema.json) | What a Harness must hand back |
 | `flytrap prepare` | [`src/prepare.js`](src/prepare.js) | Checks the commenter's permission, then gathers the diff and prompt |
 | Claude Adapter | [`action.yml`](action.yml) | Runs `claude-code-action` with only `Read,Glob,Grep` and `--json-schema` |
