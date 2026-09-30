@@ -1,24 +1,34 @@
 ---
 name: flytrap-review
-description: Review the Changed lines of one pull request against a six-category Rubric and return Findings with a Severity each, plus an overall Verdict, as JSON matching Flytrap's findings schema. Use when given a pull request diff to review non-interactively.
+description: Review the Changed lines of one change — a pull request, or the current branch against its base — against Flytrap's six-category Rubric, and report Findings with a Severity each plus an overall Verdict. Use when asked to "flytrap" a branch or PR, or to review changes with the Flytrap Rubric, and when a harness supplies a pull request diff and the findings schema to review non-interactively.
 ---
 
 # Flytrap Review
 
-You are reviewing one pull request. You are given its diff below, and the pull request's head
-commit is checked out in your working directory so you can read any file for context. You cannot
-change anything and nobody will answer questions: work from what you have, and finish by returning
-the Review.
+You are reviewing one change: a pull request, or a branch's work in progress. You report on it and
+nothing else: don't edit files, commit, push, or post anything, even to fix a Finding. A harness
+may run you non-interactively with everything supplied; if it does, it says so, and its
+instructions about what you may do win over this skill's.
 
 ## Inputs
 
-- **The diff.** It is supplied with this prompt. Do not try to fetch it, or anything else, from the
-  network or from git.
-- **The repository at the head commit.** Read changed files in full, and any related files, when the
-  diff alone doesn't show enough to judge a change: callers, tests, types, configuration.
-- **The Spec, when there is one.** If the prompt includes the issues this pull request closes, they
-  are its Spec. If not, there is no Spec: don't go looking for one, and don't treat an issue that is
-  merely mentioned as a Spec.
+- **The diff.** If it is supplied with the prompt, review exactly that and don't fetch it. If not,
+  get it yourself:
+  - for a pull request you're given, `gh pr diff <number>`;
+  - otherwise, the current branch against its base: `git diff $(git merge-base HEAD origin/<default
+    branch>)`, which includes uncommitted changes to tracked files. Check `git status` for new,
+    untracked files that belong to the change too.
+
+  Leave out lockfiles, build output, minified files and other generated code, as the harness does.
+- **The repository.** Read changed files in full, and any related files, when the diff alone doesn't
+  show enough to judge a change: callers, tests, types, configuration. When reviewing a pull request
+  that isn't checked out, don't check it out: fetch it with `git fetch origin pull/<number>/head`
+  and read files with `git show FETCH_HEAD:<path>`.
+- **The Spec, when there is one.** If issues are supplied as the Spec, use those. When you are
+  reviewing a pull request yourself, the issues it closes are its Spec: find them with
+  `gh pr view <number> --json closingIssuesReferences` and read them. An issue the user names for
+  the review is a Spec too. Otherwise there is no Spec: don't go looking for one, and don't treat
+  an issue that is merely mentioned as a Spec.
 - **Conventions.** If the repository has agent instruction files (`AGENTS.md`, `CLAUDE.md`, including
   ones in subdirectories that contain changed files), read them. Their rules are the Conventions
   category.
@@ -87,7 +97,7 @@ are fine, no praise, and no Finding you can't tie to a specific changed line.
 
 ## Output
 
-Return exactly one JSON object matching the findings schema you were given:
+If you were given the findings schema, return exactly one JSON object matching it:
 
 - `verdict`: `approve`, `approve_with_suggestions` or `request_changes`, as above.
 - `summary`: two to five sentences on what the change does and how it holds up overall. Plain
@@ -99,6 +109,9 @@ Return exactly one JSON object matching the findings schema you were given:
   - optionally `suggestion`: replacement code for exactly the lines `line` to `end_line`, when
     the fix is small and certain. Leave it out otherwise.
 
-Write the `summary`, titles and bodies in American English (behavior, not behaviour).
+Otherwise, write the Review for the person who asked, with the same content: the Verdict and the
+summary first, then the Findings grouped by Severity, Blockers first. Give each Finding its
+`file:line` (or `file:line-end_line`), its category, the title and the body, and the replacement
+code when you have a small, certain fix. Say "No Findings" rather than leaving the list empty.
 
-Return the JSON and nothing else: don't post it anywhere or ask for confirmation.
+Write the summary, titles and bodies in American English (behavior, not behaviour).

@@ -14,6 +14,7 @@ import {
   MAX_ISSUE_BODY_CHARS,
   MAX_SPEC_ISSUES,
   MAX_CONVENTIONS_PATHS,
+  HARNESS_TERMS,
 } from '../src/prepare.js';
 import { loadSchema } from '../src/schema.js';
 import { fakeApi, fixture, jsonFixture } from './helpers.js';
@@ -170,6 +171,8 @@ test('gives the Harness the rubric, the diff and the findings schema', async () 
   assert.doesNotMatch(outputs.prompt, /^---\nname:/, 'skill frontmatter is stripped');
   assert.ok(outputs.prompt.includes(fixture('pr.diff')));
   assert.match(outputs.prompt, /Pull request: #7/);
+  // The skill is harness-neutral, so the non-interactive, JSON-only terms come from the prompt.
+  assert.ok(outputs.prompt.includes(HARNESS_TERMS));
   const { $schema, $id, ...rest } = loadSchema();
   // This pull request has no Spec (its body has no closing issue), so spec is dropped from the
   // category enum the Harness is given.
