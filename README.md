@@ -1,6 +1,15 @@
 # flytrap
 LLM-powered PR code review — @flytrap on demand or as a PR check. Harness-agnostic review skill + findings schema.
 
+## Usage
+
+```
+@flytrap                # comment on a pull request to get a Review
+@flytrap use opus       # the same, on a different model for that one Review
+```
+
+[Using it](#using-it) sets up the Action.
+
 ## Using it
 
 Add a `CLAUDE_CODE_OAUTH_TOKEN` secret to your repo, then copy this into
