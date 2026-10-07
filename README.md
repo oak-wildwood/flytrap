@@ -1,4 +1,4 @@
-# flytrap
+# <img src="docs/assets/flytrap-fly.png" alt="" width="40" align="center"> flytrap
 LLM-powered PR code review — @flytrap on demand or as a PR check. Harness-agnostic review skill + findings schema.
 
 ## Usage
