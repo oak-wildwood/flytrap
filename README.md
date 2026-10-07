@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="docs/assets/flytrap-fly.png" alt="The flytrap fly" width="128">
-</p>
-
 # flytrap
 LLM-powered code review — run it locally as an Agent Skill, or as @flytrap on your pull requests.
 Harness-agnostic review skill + findings schema.
