@@ -1,14 +1,14 @@
 # 🪰 flytrap
 LLM-powered PR code review — `@flytrap` on demand or as a PR check. Harness-agnostic review skill + findings schema.
 
-## Quick start
+## Usage
+
+Once the Action is set up (see [Using it](#using-it)), comment on a pull request:
 
 ```
-@flytrap                # comment on a pull request to get a Review
+@flytrap                # get a Review
 @flytrap use opus       # the same, on a different model for that one Review
 ```
-
-[Using it](#using-it) sets up the Action.
 
 ## Using it
 
