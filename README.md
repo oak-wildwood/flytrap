@@ -1,7 +1,7 @@
 # 🪰 flytrap
-LLM-powered PR code review — @flytrap on demand or as a PR check. Harness-agnostic review skill + findings schema.
+LLM-powered PR code review — `@flytrap` on demand or as a PR check. Harness-agnostic review skill + findings schema.
 
-## Usage
+## Quick start
 
 ```
 @flytrap                # comment on a pull request to get a Review
