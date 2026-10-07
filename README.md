@@ -1,14 +1,11 @@
 # 🪰 flytrap
 LLM-powered PR code review — `@flytrap` on demand or as a PR check. Harness-agnostic review skill + findings schema.
 
-## Usage
-
-Once the Action is set up (see [Using it](#using-it)), comment on a pull request:
-
-```
-@flytrap                # get a Review
-@flytrap use opus       # the same, on a different model for that one Review
-```
+> [!NOTE]
+> The Action runs on Claude today. The Rubric and the Findings schema are harness-agnostic by
+> design, and the Claude Adapter is the only Harness-specific part
+> ([ADR 0001](docs/adr/0001-harness-agnostic-seam.md)). A second Adapter waits until someone needs
+> one.
 
 ## Using it
 
@@ -39,8 +36,10 @@ jobs:
 
 A collaborator with write, maintain or admin permission then comments `@flytrap` on a pull request
 and gets back one comment-only review: a Verdict and summary, then an inline comment on each
-Finding, with a one-click suggested change where it has one. See
-[`examples/flytrap.yml`](examples/flytrap.yml) for the same file with comments.
+Finding, with a one-click suggested change where it has one. Add `use <name>` after the mention to
+run that one Review on a different model (see [Choosing a model per
+comment](#choosing-a-model-per-comment)). See [`examples/flytrap.yml`](examples/flytrap.yml) for
+the same file with comments.
 
 ### Versions
 
